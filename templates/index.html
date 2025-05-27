@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+<!-- For loading alternate resource paths 
+  <script type="module" src="{{ url_for('static', filename='game.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+-->
+  
+    <title>Matrix Snake 3D - Enhanced</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+            color: #0f0; 
+            font-family: 'Courier New', Courier, monospace;
+        }
+        canvas { 
+            display: block; 
+        }
+        .game-ui {
+            position: absolute;
+            padding: 10px;
+            background-color: rgba(0, 20, 0, 0.8);
+            border: 1px solid #0f0;
+            border-radius: 5px;
+            font-size: 1.2em;
+            pointer-events: none;
+        }
+        #info {
+            top: 10px;
+            left: 10px;
+        }
+        #combo {
+            top: 10px;
+            right: 10px;
+            color: #0ff;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #gameScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 10, 0, 0.8);
+            z-index: 10;
+        }
+        #startScreen, #gameOverScreen {
+            padding: 30px;
+            background-color: rgba(0, 30, 0, 0.9);
+            border: 2px solid #0f0;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+        }
+        #gameOverScreen {
+            border-color: #f00;
+        }
+        .title {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #0f0;
+        }
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: rgba(0, 80, 0, 0.8);
+            border: 1px solid #0f0;
+            border-radius: 5px;
+            color: #0f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        .button:hover {
+            background-color: rgba(0, 120, 0, 0.9);
+            transform: scale(1.05);
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        #highScores {
+            margin-top: 20px;
+            text-align: left;
+            width: 100%;
+        }
+        #highScores table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #highScores th, #highScores td {
+            padding: 5px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.5);
+        }
+        #touchControls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none; /* Hidden by default, shown on mobile */
+        }
+        .touchBtn {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(0, 50, 0, 0.5);
+            border: 1px solid #0f0;
+            border-radius: 50%;
+            margin: 5px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        /* Matrix animation background */
+        #matrixCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Matrix background -->
+    <canvas id="matrixCanvas"></canvas>
+    
+    <!-- Game canvas -->
+    <canvas id="gameCanvas"></canvas>
+    
+    <!-- Game UI -->
+    <div id="info" class="game-ui">Score: 0 | High: 0</div>
+    <div id="combo" class="game-ui">Combo x1!</div>
+    
+    <!-- Touch controls for mobile -->
+    <div id="touchControls">
+        <div class="touchBtn" id="upBtn">↑</div>
+        <div style="display: flex;">
+            <div class="touchBtn" id="leftBtn">←</div>
+            <div class="touchBtn" id="downBtn">↓</div>
+            <div class="touchBtn" id="rightBtn">→</div>
+        </div>
+    </div>
+    
+    <!-- Game screens -->
+    <div id="gameScreen">
+        <div id="startScreen">
+            <div class="title">MATRIX SNAKE 3D</div>
+            <div class="subtitle">Navigate the digital realm. Collect data packets. Avoid system firewalls.</div>
+            <div class="button" id="startBtn">START GAME</div>
+            <div class="button" id="difficultyBtn">DIFFICULTY: NORMAL</div>
+            <div class="controls">
+                Use Arrow Keys to change direction<br>
+                Press P to pause the game
+            </div>
+            <div id="highScores">
+                <h3>HIGH SCORES</h3>
+                <table id="scoresTable">
+                    <tr><th>RANK</th><th>SCORE</th><th>DIFFICULTY</th></tr>
+                </table>
+            </div>
+        </div>
+        <div id="gameOverScreen" style="display: none;">
+            <div class="title" style="color: #f00;">SYSTEM FAILURE</div>
+            <div id="finalScore" class="subtitle">Final Score: 0</div>
+            <div class="button" id="restartBtn">RESTART</div>
+            <div class="button" id="menuBtn">MAIN MENU</div>
+        </div>
+        <div id="pauseScreen" style="display: none;">
+            <div class="title">PAUSED</div>
+            <div class="subtitle">Press P to resume</div>
+            <div class="button" id="resumeBtn">RESUME</div>
+            <div class="button" id="quitBtn">QUIT</div>
+        </div>
+    </div>
+
+    <!-- Audio elements -->
+    <audio id="eatSound" preload="auto">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAFgAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAWMBaq2QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAANIAqJWUEQAFO+gRc5TRJIkiRJEiL///////////8RERERERERVVVVVVVVVVVVVVJEREREREVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/jGMQJA/Aa1flBABBTpGX9hDGMYxw7/+MMYxd/4wxIiI9////jDEQ7/jdEiJERERBaIiIzMzMzIiIiP//MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM/+MYxB4AAANIAAAAADMzMzMzMzMzMzMzMzMzMzMzM" type="audio/mpeg">
+    </audio>
+    <audio id="gameOverSound" preload="auto">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAFgAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAWMBaq2QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAAKMFqZVQEwAhGKzc+FSIiIiIiIiIj4+Pj4+Pj4+Pj4+JIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIv/jIMQNAAAP8AEAAAI+IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIv/jEMQQAAAP8AAAAAI+IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIg==" type="audio/mpeg">
+    </audio>
+    <audio id="bgMusic" loop preload="auto">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAFgAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAWMBaq2QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAAJcAKRWQEQAFNfQRc5znOc5znP/////////uc5znOc5znOc5znEREREREREREREMYxjGMY/+MYxBEJkFahX4wwAjGMYxjGMYxjGMYxERERERERESIiIiL//////////////+MYxBQG4AqlX8MQAu/////////////////////jIMQVBVwCqVfwBAC/////////////////" type="audio/mpeg">
+    </audio>
+
+
+//  <!--  <script type="importmap">
+//        {
+//            "imports": {
+                "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/"
+//            }
+//        }
+// </script> -->
+
+        <script type="module">
+            import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+            import { EffectComposer } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
+            import { RenderPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
+            import { UnrealBloomPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+
+        // Game configuration
+        const CONFIG = {
+            GRID_SIZE: 25,           // Number of units across/deep
+            CELL_SIZE: 1,            // Size of each grid cell/snake segment
+            BASE_SPEED: 150,         // Base milliseconds between updates
+            DIFFICULTY_LEVELS: {
+                'EASY': { speedMultiplier: 1.3, obstacleMultiplier: 0.5 },
+                'NORMAL': { speedMultiplier: 1.0, obstacleMultiplier: 1.0 },
+                'HARD': { speedMultiplier: 0.7, obstacleMultiplier: 1.5 }
+            },
+            MAX_OBSTACLE_COUNT: 10,  // Maximum number of obstacles
+            FOOD_TYPES: [
+                { type: 'regular', color: 0x00ff00, points: 1, speedEffect: 0 },
+                { type: 'special', color: 0x00ffff, points: 5, speedEffect: -10 },
+                { type: 'rare', color: 0xff00ff, points: 10, speedEffect: 10 }
+            ],
+            COMBO_TIMEOUT: 5000,     // Milliseconds to get next food for combo
+            HIGH_SCORES_COUNT: 5     // Number of high scores to save
+        };
+
+        // --- Particle System for Effects ---
+        class ParticleSystem {
+            constructor(scene) {
+                this.scene = scene;
+                this.particles = [];
+                
+                // Shared geometry for all particles
+                this.geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+            }
+            
+            createFoodEffect(position, color) {
+                const count = 20; // Number of particles
+                
+                for (let i = 0; i < count; i++) {
+                    // Create particle
+                    const material = new THREE.MeshBasicMaterial({
+                        color: color || 0x00ff00,
+                        transparent: true,
+                        opacity: 0.9
+                    });
+                    
+                    const particle = new THREE.Mesh(this.geometry, material);
+                    
+                    // Set initial position
+                    particle.position.copy(position);
+                    
+                    // Set random velocity
+                    const velocity = new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.1,
+                        (Math.random()) * 0.1,
+                        (Math.random() - 0.5) * 0.1
+                    );
+                    
+                    // Add to scene
+                    this.scene.add(particle);
+                    
+                    // Store particle data
+                    this.particles.push({
+                        mesh: particle,
+                        velocity: velocity,
+                        life: 1.0,  // Life from 1.0 to 0.0
+                        decay: 0.02 + Math.random() * 0.03 // Random decay rate
+                    });
+                }
+            }
+            
+            update() {
+                // Update all particles
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const particle = this.particles[i];
+                    
+                    // Update position
+                    particle.mesh.position.add(particle.velocity);
+                    
+                    // Simulate gravity
+                    particle.velocity.y -= 0.003;
+
+                    // Update life
+                    particle.life -= particle.decay;
+                    
+                    // Update opacity based on life
+                    particle.mesh.material.opacity = particle.life;
+                    
+                    // Remove dead particles
+                    if (particle.life <= 0) {
+                        this.scene.remove(particle.mesh);
+                        particle.mesh.material.dispose();
+                        this.particles.splice(i, 1);
+                    }
+                }
+            }
+            
+            clear() {
+                // Remove all particles
+                for (const particle of this.particles) {
+                    this.scene.remove(particle.mesh);
+                    particle.mesh.material.dispose();
+                    particle.mesh.geometry.dispose();
+                }
+                this.particles = [];
+            }
+        }
+
+        // Game state management
+        const GameState = {
+            MENU: 'menu',
+            PLAYING: 'playing',
+            PAUSED: 'paused',
+            GAME_OVER: 'gameOver',
+            currentState: 'menu',
+            
+            changeState(newState) {
+                this.currentState = newState;
+                
+                // Handle UI changes based on state
+                switch(newState) {
+                    case this.MENU:
+                        document.getElementById('gameScreen').style.display = 'flex';
+                        document.getElementById('startScreen').style.display = 'block';
+                        document.getElementById('gameOverScreen').style.display = 'none';
+                        break;
+                    case this.PLAYING:
+                        document.getElementById('gameScreen').style.display = 'none';
+                        break;
+                    case this.PAUSED:
+                        document.getElementById('gameScreen').style.display = 'flex';
+                        document.getElementById('startScreen').style.display = 'none';
+                        document.getElementById('gameOverScreen').style.display = 'none';
+                        document.getElementById('pauseScreen').style.display = 'block';
+                        break;
+                    case this.GAME_OVER:
+                        document.getElementById('gameScreen').style.display = 'flex';
+                        document.getElementById('startScreen').style.display = 'none';
+                        document.getElementById('gameOverScreen').style.display = 'block';
+                        // The score will be updated by the game instance when it triggers game over
+                        document.getElementById('gameOverSound').play();
+                        break;
+                }
+            }
+        };
+
+        // --- Matrix Rain Background Effect ---
+        class MatrixRain {
+            constructor() {
+                this.canvas = document.getElementById('matrixCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resize();
+                
+                this.fontSize = 14;
+                this.columns = Math.floor(this.canvas.width / this.fontSize);
+                this.drops = [];
+                this.characters = '01アイウエオカキクケコサシスセソタチツテトナニヌネ<>{}[]()+-*/%=#@&?*:･ﾟ✧  ≡       ░▒░▒░▒▓█║│·▓▒░█░▒▓█║│·▓▒░█░▒▓█║│·▓▒░█䷀    ▙⁞    ░▒▓█║│     ·▓▒░█▄▀■■▄▬▌▐     ⁞▏▄▀■■▄▬▌▐ ▄▀■■▄▬▌▐ .  ▛   ⁞▏ ▏ ⁚⁝   .';
+
+                this.resetDrops();
+
+                this.animate = this.animate.bind(this);
+                this.animate();
+
+                window.addEventListener('resize', this.handleResize.bind(this));
+            }
+            
+            handleResize() {
+                this.resize();
+                this.columns = Math.floor(this.canvas.width / this.fontSize);
+                this.resetDrops();
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+            
+            resetDrops() {
+                this.drops = [];
+                for(let i = 0; i < this.columns; i++) {
+                    // Start drops at random negative positions for staggered effect
+                    this.drops[i] = Math.floor(Math.random() * -100);
+                }
+            }
+            
+            animate() {
+                if (GameState.currentState === GameState.PLAYING) {
+                    // Semi-transparent background to create fade effect
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    this.ctx.fillStyle = '#0f0';
+                    this.ctx.font = this.fontSize + 'px monospace';
+                    
+                    for(let i = 0; i < this.drops.length; i++) {
+                        // Choose a random character
+                        const text = this.characters.charAt(Math.floor(Math.random() * this.characters.length));
+                        
+                        // Draw the character
+                        this.ctx.fillText(text, i * this.fontSize, this.drops[i] * this.fontSize);
+                        
+                        // Move drops down and reset when off the screen
+                        if(this.drops[i] * this.fontSize > this.canvas.height && Math.random() > 0.975) {
+                            this.drops[i] = 0;
+                        }
+                        this.drops[i]++;
+                    }
+                }
+                requestAnimationFrame(this.animate);
+            }
+        }
+
+        // --- Object pooling for performance optimization ---
+        class ObjectPool {
+            constructor(createFunc, initialCount = 10) {
+                this.pool = [];
+                this.createFunc = createFunc;
+                
+                // Populate the pool initially
+                for (let i = 0; i < initialCount; i++) {
+                    this.pool.push(this.createFunc());
+                }
+            }
+            
+            get() {
+                if (this.pool.length > 0) {
+                    return this.pool.pop();
+                }
+                return this.createFunc();
+            }
+            
+            release(object) {
+                this.pool.push(object);
+            }
+            
+            clear() {
+                this.pool = [];
+            }
+        }
+
+        // --- Main Game Class ---
+        class SnakeGame {
+            constructor() {
+                // Initialize properties
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.snake = [];
+                this.food = null;
+                this.obstacles = [];
+                this.direction = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
+                this.nextDirection = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
+                this.score = 0;
+                this.highScore = this.loadHighScores()[0]?.score || 0;
+                this.gameSpeed = CONFIG.BASE_SPEED;
+                this.lastUpdateTime = 0;
+                this.isGameOver = false;
+                this.isPaused = false;
+                this.gameLoopId = null;
+                this.bounds = Math.floor(CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE;
+                this.obstacleCount = CONFIG.MAX_OBSTACLE_COUNT;
+                this.comboCount = 0;
+                this.lastFoodTime = 0;
+                this.currentDifficulty = 'NORMAL';
+                this.particleSystem = null;
+                this.headLight = null;
+
+                // Initialize materials
+                this.materials = {
+                    snakeHead: new THREE.MeshStandardMaterial({
+                        color: 0x0000ff,
+                        emissive: 0x39FF14,
+                        roughness: 0.8,
+                        metalness: 0.22
+                    }),
+                    snakeBody: new THREE.MeshStandardMaterial({
+                        color: 0x00ff00,
+                        emissive: 0x005500,
+                        roughness: 0.3,
+                        metalness: 0.72
+                    }),
+                    food: new THREE.MeshBasicMaterial({
+                        color: 0x00ff00,
+                        wireframe: true
+                    }),
+                    obstacle: new THREE.MeshBasicMaterial({
+                        color: 0x008800,
+                        wireframe: true
+                    }),
+                    specialFood: new THREE.MeshBasicMaterial({
+                        color: 0x00ffff,
+                        wireframe: true
+                    }),
+                    rareFood: new THREE.MeshBasicMaterial({
+                        color: 0xff00ff,
+                        wireframe: true
+                    })
+                };
+
+                // Initialize geometries
+                this.geometries = {
+                    segment: new THREE.BoxGeometry(
+                        CONFIG.CELL_SIZE,
+                        CONFIG.CELL_SIZE,
+                        CONFIG.CELL_SIZE
+                    ),
+                    foodBox: new THREE.BoxGeometry(
+                        CONFIG.CELL_SIZE * 0.8,
+                        CONFIG.CELL_SIZE * 0.8,
+                        CONFIG.CELL_SIZE * 0.8
+                    ),
+                    foodSphere: new THREE.SphereGeometry(
+                        CONFIG.CELL_SIZE * 0.5,
+                        16,
+                        12
+                    ),
+                    foodTetrahedron: new THREE.TetrahedronGeometry(
+                        CONFIG.CELL_SIZE * 0.6,
+                        0
+                    ),
+                    obstacle: new THREE.BoxGeometry(
+                        CONFIG.CELL_SIZE,
+                        CONFIG.CELL_SIZE * 1.5,
+                        CONFIG.CELL_SIZE
+                    )
+                };
+
+                // Initialize object pools
+                this.segmentPool = new ObjectPool(() => {
+                    return new THREE.Mesh(this.geometries.segment, this.materials.snakeBody.clone());
+                }, 20);
+
+                this.obstaclePool = new ObjectPool(() => {
+                    return new THREE.Mesh(this.geometries.obstacle, this.materials.obstacle);
+                }, CONFIG.MAX_OBSTACLE_COUNT * 1.5);
+
+                // Initialize the game
+                this.setupEventListeners();
+                this.init();
+                
+                // Create the matrix rain effect
+                this.matrixRain = new MatrixRain();
+                
+                // Update high scores display
+                this.updateHighScoresTable();
+            }
+            
+            // Place food at random position
+            placeFood() {
+                let foodPos;
+                let validPosition = false;
+                let attempts = 0;
+                const maxAttempts = 100; // Prevent infinite loop
+                
+                while (!validPosition && attempts < maxAttempts) {
+                    foodPos = new THREE.Vector3(
+                        Math.floor(Math.random() * CONFIG.GRID_SIZE - CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE,
+                        0,
+                        Math.floor(Math.random() * CONFIG.GRID_SIZE - CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE
+                    );
+                    
+                    // Check collision with snake
+                    let collisionWithSnake = this.snake.some(segment => 
+                        segment.position.distanceTo(foodPos) < CONFIG.CELL_SIZE * 0.9
+                    );
+                    
+                    // Check collision with obstacles
+                    let collisionWithObstacle = this.obstacles.some(obstacle => 
+                        obstacle.position.distanceTo(foodPos) < CONFIG.CELL_SIZE * 0.9
+                    );
+                    
+                    validPosition = !collisionWithSnake && !collisionWithObstacle;
+                    attempts++;
+                }
+                
+                if (validPosition) {
+                    this.food.position.copy(foodPos);
+                } else {
+                    // Fallback in case we can't find a position after max attempts
+                    console.warn("Could not find valid position for food after max attempts");
+                    this.food.position.set(0, 5, 0); // Place above play area
+                }
+            }
+            
+            // Create obstacles
+            createObstacles() {
+                // Clear existing obstacles
+                for (const obstacle of this.obstacles) {
+                    this.scene.remove(obstacle);
+                }
+                this.obstacles = [];
+                
+                // Create new obstacles
+                for (let i = 0; i < this.obstacleCount; i++) {
+                    let obstaclePos;
+                    let validPosition = false;
+                    let attempts = 0;
+                    const maxAttempts = 50;
+                    
+                    while (!validPosition && attempts < maxAttempts) {
+                        obstaclePos = new THREE.Vector3(
+                            Math.floor(Math.random() * CONFIG.GRID_SIZE - CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE,
+                            0,
+                            Math.floor(Math.random() * CONFIG.GRID_SIZE - CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE
+                        );
+                        
+                        // Check distance from snake start position
+                        let tooCloseToStart = obstaclePos.length() < CONFIG.CELL_SIZE * 3;
+                        
+                        // Check collision with snake and other obstacles
+                        let collisionWithSnake = this.snake.some(segment => 
+                            segment.position.distanceTo(obstaclePos) < CONFIG.CELL_SIZE * 2
+                        );
+                        
+                        let collisionWithObstacle = this.obstacles.some(obstacle => 
+                            obstacle.position.distanceTo(obstaclePos) < CONFIG.CELL_SIZE
+                        );
+                        
+                        validPosition = !tooCloseToStart && !collisionWithSnake && !collisionWithObstacle;
+                        attempts++;
+                    }
+                    
+                    if (validPosition) {
+                        const obstacle = new THREE.Mesh(this.geometries.segment, this.materials.obstacle);
+                        obstacle.position.copy(obstaclePos);
+                        this.obstacles.push(obstacle);
+                        this.scene.add(obstacle);
+                    }
+                }
+            }
+            
+            // Clear all game objects for a new game
+            clearGameObjects() {
+                // Clear snake
+                for (const segment of this.snake) {
+                    this.scene.remove(segment);
+                    this.segmentPool.release(segment);
+                }
+                this.snake = [];
+                
+                // Clear food
+                if (this.food) {
+                    this.scene.remove(this.food);
+                    this.food = null;
+                }
+                
+                // Clear obstacles
+                for (const obstacle of this.obstacles) {
+                    this.scene.remove(obstacle);
+                }
+                this.obstacles = [];
+                
+                // Clear particles
+                this.particleSystem.clear();
+            }
+            
+            // Update game logic
+            update(time) {
+                // Skip update if game is paused, over, or not playing
+                if (this.isPaused || this.isGameOver || GameState.currentState !== GameState.PLAYING) {
+                    return;
+                }
+                
+                // Control game speed
+                if (time - this.lastUpdateTime < this.gameSpeed) {
+                    return;
+                }
+                this.lastUpdateTime = time;
+                
+                // Update direction safely
+                this.direction = this.nextDirection.clone();
+                
+                // Get current head position
+                const head = this.snake[0];
+                const newHeadPos = head.position.clone().add(
+                    this.direction.clone().multiplyScalar(CONFIG.CELL_SIZE)
+                );
+                
+                // Check collision with walls
+                const halfGrid = CONFIG.GRID_SIZE / 2;
+                if (
+                    newHeadPos.x > halfGrid * CONFIG.CELL_SIZE || 
+                    newHeadPos.x < -halfGrid * CONFIG.CELL_SIZE ||
+                    newHeadPos.z > halfGrid * CONFIG.CELL_SIZE || 
+                    newHeadPos.z < -halfGrid * CONFIG.CELL_SIZE
+                ) {
+                    this.triggerGameOver();
+                    return;
+                }
+                
+                // Check collision with self
+                for (let i = 1; i < this.snake.length; i++) {
+                    if (newHeadPos.distanceTo(this.snake[i].position) < CONFIG.CELL_SIZE * 0.25) {
+                        this.triggerGameOver();
+                        return;
+                    }
+                }
+                
+                // Check collision with obstacles
+                for (const obstacle of this.obstacles) {
+                    if (newHeadPos.distanceTo(obstacle.position) < CONFIG.CELL_SIZE * 0.5) {
+                        this.triggerGameOver();
+                        return;
+                    }
+                }
+                
+                // Create new head segment
+                const newHead = this.segmentPool.get();
+                newHead.position.copy(newHeadPos);
+                this.snake.unshift(newHead);
+                this.scene.add(newHead);
+                
+                // Check for food collision
+                if (this.food && newHeadPos.distanceTo(this.food.position) < CONFIG.CELL_SIZE * 0.5) {
+                    // Get food properties
+                    const foodType = this.food.userData;
+                    
+                    // Increase score
+                    const basePoints = foodType.points || 1;
+                    
+                    // Handle combo system
+                    const currentTime = performance.now();
+                    if (currentTime - this.lastFoodTime < CONFIG.COMBO_TIMEOUT) {
+                        this.comboCount++;
+                    } else {
+                        this.comboCount = 1;
+                    }
+                    this.lastFoodTime = currentTime;
+                    
+                    // Calculate final score with combo multiplier
+                    const points = basePoints * this.comboCount;
+                    this.score += points;
+                    
+                    // Show combo
+                    if (this.comboCount > 1) {
+                        const comboElement = document.getElementById('combo');
+                        comboElement.textContent = `Combo x${this.comboCount}! +${points}`;
+                        comboElement.style.opacity = 1;
+                        
+                        // Hide combo text after a delay
+                        setTimeout(() => {
+                            comboElement.style.opacity = 0;
+                        }, 2000);
+                    }
+                    
+                    // Update score display
+                    document.getElementById('info').textContent = `Score: ${this.score} | High: ${Math.max(this.score, this.highScore)}`;
+                    
+                    // Apply speed effect from food type
+                    if (foodType.speedEffect) {
+                        this.gameSpeed = Math.max(50, this.gameSpeed - foodType.speedEffect);
+                    }
+                    
+                    // Play eat sound
+                    document.getElementById('eatSound').play();
+                    
+                    // Create particle effect at food position
+                    this.particleSystem.createFoodEffect(this.food.position.clone(), foodType.color);
+                    
+                    // Place new food
+                    this.chooseFoodType();
+                    this.placeFood();
+                } else {
+                    // Remove tail if not eating
+                    const tail = this.snake.pop();
+                    this.scene.remove(tail);
+                    this.segmentPool.release(tail);
+                }
+                
+                // Update particles
+                this.particleSystem.update();
+                
+                // Animate snake segments (subtle wave effect)
+                for (let i = 0; i < this.snake.length; i++) {
+                    const segment = this.snake[i];
+                    segment.rotation.y = Math.sin(time * 0.001 + i * 0.2) * 0.1;
+                    segment.position.y = Math.sin(time * 0.002 + i * 0.1) * 0.2;
+                }
+                
+                // Animate food
+                if (this.food) {
+                    this.food.rotation.y += 0.05;
+                    this.food.position.y = Math.sin(time * 0.002) * 0.3;
+                }
+            }
+            
+            // Choose a food type based on probability
+            chooseFoodType() {
+                // Food type probability
+                const rand = Math.random();
+                let foodType;
+                
+                if (rand < 0.05) {  // 5% chance for rare food
+                    foodType = CONFIG.FOOD_TYPES[2];
+                } else if (rand < 0.25) {  // 20% chance for special food
+                    foodType = CONFIG.FOOD_TYPES[1];
+                } else {  // 75% chance for regular food
+                    foodType = CONFIG.FOOD_TYPES[0];
+                }
+                
+                // Create food mesh with appropriate material
+                let material;
+                switch(foodType.type) {
+                    case 'special':
+                        material = this.materials.specialFood;
+                        break;
+                    case 'rare':
+                        material = this.materials.rareFood;
+                        break;
+                    default:
+                        material = this.materials.food;
+                }
+                
+                // Create or update food mesh
+                if (!this.food) {
+                    this.food = new THREE.Mesh(
+                        this.geometries.segment,
+                        material
+                    );
+                    this.scene.add(this.food);
+                } else {
+                    this.food.material = material;
+                }
+                
+                // Store food type data
+                this.food.userData = foodType;
+            }
+            
+            // Reset the game
+            resetGame() {
+                // Clear all game objects
+                this.clearGameObjects();
+                
+                // Stop any playing audio
+                document.getElementById('eatSound').pause();
+                document.getElementById('gameOverSound').pause();
+                document.getElementById('bgMusic').pause();
+                
+                // Reset game state
+                this.direction = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
+                this.nextDirection = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
+                this.score = 0;
+                this.gameSpeed = CONFIG.BASE_SPEED * CONFIG.DIFFICULTY_LEVELS[this.currentDifficulty].speedMultiplier;
+                this.isGameOver = false;
+                this.isPaused = false;
+                this.comboCount = 0;
+                this.lastFoodTime = 0;
+                
+                // Update obstacle count based on difficulty
+                this.obstacleCount = Math.floor(CONFIG.MAX_OBSTACLE_COUNT * 
+                                  CONFIG.DIFFICULTY_LEVELS[this.currentDifficulty].obstacleMultiplier);
+                
+                // Create initial snake
+                const startSegment = this.segmentPool.get();
+                startSegment.position.set(0, 0, 0);
+                this.snake.push(startSegment);
+                this.scene.add(startSegment);
+                
+                // Create food
+                this.chooseFoodType();
+                this.placeFood();
+                
+                // Create obstacles
+                this.createObstacles();
+                
+                // Update score display
+                document.getElementById('info').textContent = `Score: ${this.score} | High: ${this.highScore}`;
+                
+                // Start background music
+                const music = document.getElementById('bgMusic');
+                music.volume = 0.3;
+                music.play();
+            }
+            
+            // Start the game
+            startGame() {
+                this.resetGame();
+                GameState.changeState(GameState.PLAYING);
+                this.gameLoop();
+            }
+            
+            // Game over
+            triggerGameOver() {
+                this.isGameOver = true;
+                
+                // Update final score display
+                document.getElementById('finalScore').textContent = `Final Score: ${this.score}`;
+                
+                // Check for high score
+                const highScores = this.loadHighScores();
+                if (this.score > 0) {
+                    // Add current score to high scores
+                    highScores.push({
+                        score: this.score,
+                        difficulty: this.currentDifficulty,
+                        date: new Date().toLocaleDateString()
+                    });
+                    
+                    // Sort high scores
+                    highScores.sort((a, b) => b.score - a.score);
+                    
+                    // Keep only top scores
+                    const topScores = highScores.slice(0, CONFIG.HIGH_SCORES_COUNT);
+                    
+                    // Save high scores
+                    localStorage.setItem('snakeHighScores', JSON.stringify(topScores));
+                    
+                    // Update high score if needed
+                    this.highScore = Math.max(this.score, this.highScore);
+                }
+                
+                // Update high scores table
+                this.updateHighScoresTable();
+                
+                // Stop background music
+                document.getElementById('bgMusic').pause();
+                
+                // Change game state to game over
+                GameState.changeState(GameState.GAME_OVER);
+            }
+            
+            // Game loop
+            gameLoop(time) {
+                // Update current time
+                if (!time) time = 0;
+                
+                // Update game
+                this.update(time);
+                
+                // Render scene
+                this.render();
+                
+                // Continue game loop
+                this.gameLoopId = requestAnimationFrame(this.gameLoop.bind(this));
+            }
+            
+            // Render scene
+            render() {
+                this.renderer.render(this.scene, this.camera);
+            }
+            
+            // Initialize game
+            init() {
+                // Create scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x000000);
+                
+                // Add fog for depth
+                this.scene.fog = new THREE.Fog(0x000500, CONFIG.GRID_SIZE * 0.8, CONFIG.GRID_SIZE * 2.5);
+                
+                // Create camera
+                this.camera = new THREE.PerspectiveCamera(
+                    65, window.innerWidth / window.innerHeight, 0.1, 1000
+                );
+                this.camera.position.set(0, CONFIG.GRID_SIZE * 0.8, CONFIG.GRID_SIZE * 0.9);
+                this.camera.lookAt(0, -CONFIG.GRID_SIZE * 0.1, 0);
+                
+                // Create renderer
+                this.renderer = new THREE.WebGLRenderer({
+                    canvas: document.getElementById('gameCanvas'),
+                    antialias: true,
+                    alpha: true
+                });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                
+                // Create grid for visual reference
+                const gridHelper = new THREE.GridHelper(
+                    CONFIG.GRID_SIZE * CONFIG.CELL_SIZE, 
+                    CONFIG.GRID_SIZE,
+                    0x005500,
+                    0x003300
+                );
+                gridHelper.position.y = -CONFIG.CELL_SIZE / 2;
+                this.scene.add(gridHelper);
+                
+                // Add ambient light
+                const ambientLight = new THREE.AmbientLight(0x404060);
+                this.scene.add(ambientLight);
+                
+                // Add directional light
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(5, 10, 7);
+                this.scene.add(directionalLight);
+                
+                // Create head light
+                this.headLight = new THREE.PointLight(0x00ff00, 1, CONFIG.CELL_SIZE * 3);
+                this.scene.add(this.headLight);
+                
+                // Create particle system
+                this.particleSystem = new ParticleSystem(this.scene);
+                
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+            
+            // Set up event listeners
+            setupEventListeners() {
+                // Keyboard controls
+                document.addEventListener('keydown', this.handleKeyDown.bind(this));
+                
+                // Touch controls with prevention
+                const touchControls = document.getElementById('touchControls');
+                const preventDefault = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                };
+                
+                document.getElementById('upBtn').addEventListener('touchstart', (e) => {
+                    preventDefault(e);
+                    this.handleDirectionChange(0, 0, -1);
+                });
+                document.getElementById('downBtn').addEventListener('touchstart', (e) => {
+                    preventDefault(e);
+                    this.handleDirectionChange(0, 0, 1);
+                });
+                document.getElementById('leftBtn').addEventListener('touchstart', (e) => {
+                    preventDefault(e);
+                    this.handleDirectionChange(-1, 0, 0);
+                });
+                document.getElementById('rightBtn').addEventListener('touchstart', (e) => {
+                    preventDefault(e);
+                    this.handleDirectionChange(1, 0, 0);
+                });
+                
+                // Prevent touch events on game canvas
+                document.getElementById('gameCanvas').addEventListener('touchstart', preventDefault, { passive: false });
+                document.getElementById('gameCanvas').addEventListener('touchmove', preventDefault, { passive: false });
+                
+                // Show touch controls on mobile devices
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                    touchControls.style.display = 'block';
+                }
+                
+                // UI buttons
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    this.startGame();
+                });
+                
+                document.getElementById('restartBtn').addEventListener('click', () => {
+                    this.startGame();
+                });
+                
+                document.getElementById('menuBtn').addEventListener('click', () => {
+                    GameState.changeState(GameState.MENU);
+                });
+                
+                document.getElementById('difficultyBtn').addEventListener('click', () => {
+                    this.cycleDifficulty();
+                });
+                
+                // Pause screen buttons
+                document.getElementById('resumeBtn').addEventListener('click', () => {
+                    this.togglePause();
+                });
+                
+                document.getElementById('quitBtn').addEventListener('click', () => {
+                    GameState.changeState(GameState.MENU);
+                });
+            }
+            
+            // Cycle through difficulty levels
+            cycleDifficulty() {
+                const difficulties = Object.keys(CONFIG.DIFFICULTY_LEVELS);
+                const currentIndex = difficulties.indexOf(this.currentDifficulty);
+                const nextIndex = (currentIndex + 1) % difficulties.length;
+                this.currentDifficulty = difficulties[nextIndex];
+                
+                document.getElementById('difficultyBtn').textContent = `DIFFICULTY: ${this.currentDifficulty}`;
+            }
+            
+            // Handle keyboard input
+            handleKeyDown(event) {
+                if (GameState.currentState === GameState.PLAYING) {
+                    switch(event.key) {
+                        case 'ArrowUp':
+                            this.handleDirectionChange(0, 0, -1);
+                            event.preventDefault();
+                            break;
+                        case 'ArrowDown':
+                            this.handleDirectionChange(0, 0, 1);
+                            event.preventDefault();
+                            break;
+                        case 'ArrowLeft':
+                            this.handleDirectionChange(-1, 0, 0);
+                            event.preventDefault();
+                            break;
+                        case 'ArrowRight':
+                            this.handleDirectionChange(1, 0, 0);
+                            event.preventDefault();
+                            break;
+                        case 'p':
+                        case 'P':
+                            this.togglePause();
+                            event.preventDefault();
+                            break;
+                    }
+                } else if (GameState.currentState === GameState.GAME_OVER || 
+                           GameState.currentState === GameState.MENU) {
+                    if (event.key === 'Enter') {
+                        this.startGame();
+                        event.preventDefault();
+                    }
+                }
+            }
+            
+            // Handle direction change
+            handleDirectionChange(x, y, z) {
+                const newDirection = new THREE.Vector3(x, y, z).normalize().multiplyScalar(CONFIG.CELL_SIZE);
+                
+                // Prevent 180-degree turns (moving directly backwards)
+                if (this.direction.dot(newDirection) === -CONFIG.CELL_SIZE * CONFIG.CELL_SIZE) {
+                    return;
+                }
+                
+                this.nextDirection = newDirection;
+            }
+            
+            // Toggle pause state
+            togglePause() {
+                this.isPaused = !this.isPaused;
+                
+                if (this.isPaused) {
+                    // TODO: Show pause screen
+                    document.getElementById('bgMusic').pause();
+                } else {
+                    document.getElementById('bgMusic').play();
+                }
+            }
+            
+            // Load high scores from local storage
+            loadHighScores() {
+                const scores = localStorage.getItem('snakeHighScores');
+                return scores ? JSON.parse(scores) : [];
+            }
+            
+            // Update high scores table
+            updateHighScoresTable() {
+                const highScores = this.loadHighScores();
+                const table = document.getElementById('scoresTable');
+                
+                // Clear table except header
+                while (table.rows.length > 1) {
+                    table.deleteRow(1);
+                }
+                
+                // Add high scores to table
+                for (let i = 0; i < highScores.length; i++) {
+                    const row = table.insertRow(-1);
+                    
+                    const rankCell = row.insertCell(0);
+                    rankCell.textContent = i + 1;
+                    
+                    const scoreCell = row.insertCell(1);
+                    scoreCell.textContent = highScores[i].score;
+                    
+                    const difficultyCell = row.insertCell(2);
+                    difficultyCell.textContent = highScores[i].difficulty;
+                }
+            }
+        }
+
+        // Create and start the game
+        const game = new SnakeGame();
+        
+        // Start the game when the page loads
+        window.addEventListener('load', () => {
+            GameState.changeState(GameState.MENU);
+        });
+    </script>
+</body>
+</html>
