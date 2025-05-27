@@ -3,7 +3,7 @@ title: MSnake
 emoji: 🌍
 colorFrom: yellow
 colorTo: indigo
-sdk: docker
+sdk: static
 pinned: false
 license: mit
 short_description: mSnake
