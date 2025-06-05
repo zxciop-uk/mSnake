@@ -221,7 +221,7 @@
 
         // Game configuration
         const CONFIG = {
-            GRID_SIZE: 25,           // Number of units across/deep
+            GRID_SIZE: 20,           // Number of units across/deep
             CELL_SIZE: 1,            // Size of each grid cell/snake segment
             BASE_SPEED: 150,         // Base milliseconds between updates
             DIFFICULTY_LEVELS: {
@@ -400,22 +400,23 @@
             }
             
             animate() {
-                if (GameState.currentState === GameState.PLAYING) {
+                // Check if the game is in menu, paused, OR game over state
+                if (GameState.currentState === GameState.MENU || 
+                    GameState.currentState === GameState.PAUSED || 
+                    GameState.currentState === GameState.GAME_OVER ||
+                    GameState.currentState === GameState.PLAYING) { // Added PLAYING back, assuming you still want it there!
+
                     // Semi-transparent background to create fade effect
                     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
                     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                     
-                    this.ctx.fillStyle = '#0f0';
+                    this.ctx.fillStyle = '#0f0'; // Or your matrix color
                     this.ctx.font = this.fontSize + 'px monospace';
                     
                     for(let i = 0; i < this.drops.length; i++) {
-                        // Choose a random character
                         const text = this.characters.charAt(Math.floor(Math.random() * this.characters.length));
-                        
-                        // Draw the character
                         this.ctx.fillText(text, i * this.fontSize, this.drops[i] * this.fontSize);
                         
-                        // Move drops down and reset when off the screen
                         if(this.drops[i] * this.fontSize > this.canvas.height && Math.random() > 0.975) {
                             this.drops[i] = 0;
                         }
@@ -424,8 +425,8 @@
                 }
                 requestAnimationFrame(this.animate);
             }
-        }
 
+          
         // --- Object pooling for performance optimization ---
         class ObjectPool {
             constructor(createFunc, initialCount = 10) {
@@ -562,19 +563,26 @@
             }
             
             // Place food at random position
+// Place food at random position
             placeFood() {
                 let foodPos;
                 let validPosition = false;
                 let attempts = 0;
                 const maxAttempts = 100; // Prevent infinite loop
+
+                // --- THIS IS THE UPDATED PART ---
+                const numCells = CONFIG.GRID_SIZE;
+                const xIndex = Math.floor(Math.random() * numCells) - Math.floor((numCells - 1) / 2);
+                const zIndex = Math.floor(Math.random() * numCells) - Math.floor((numCells - 1) / 2);
                 
-                while (!validPosition && attempts < maxAttempts) {
-                    foodPos = new THREE.Vector3(
-                        Math.floor(Math.random() * CONFIG.GRID_SIZE - CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE,
-                        0,
-                        Math.floor(Math.random() * CONFIG.GRID_SIZE - CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE
-                    );
-                    
+                const potentialFoodPos = new THREE.Vector3(
+                    xIndex * CONFIG.CELL_SIZE,
+                    0, // Assuming food is always on y=0 plane
+                    zIndex * CONFIG.CELL_SIZE
+                );
+                // --- END OF UPDATED PART ---
+                
+                while (!validPosition && attempts < maxAttempts) {                    
                     // Check collision with snake
                     let collisionWithSnake = this.snake.some(segment => 
                         segment.position.distanceTo(foodPos) < CONFIG.CELL_SIZE * 0.9
@@ -959,7 +967,7 @@
             init() {
                 // Create scene
                 this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x000000);
+                this.scene.background = null;
                 
                 // Add fog for depth
                 this.scene.fog = new THREE.Fog(0x000500, CONFIG.GRID_SIZE * 0.8, CONFIG.GRID_SIZE * 2.5);
