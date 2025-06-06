@@ -211,990 +211,791 @@
             }
         }
         </script>
-  
+<script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { EffectComposer } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
 
-        <script type="module">
-            import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-            import { EffectComposer } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
-            import { RenderPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
-            import { UnrealBloomPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+    // Game configuration
+    const CONFIG = {
+        GRID_SIZE: 25,           // Number of units across/deep
+        CELL_SIZE: 1,            // Size of each grid cell/snake segment
+        BASE_SPEED: 150,         // Base milliseconds between updates
+        DIFFICULTY_LEVELS: {
+            'EASY': { speedMultiplier: 1.3, obstacleMultiplier: 0.5 },
+            'NORMAL': { speedMultiplier: 1.0, obstacleMultiplier: 1.0 },
+            'HARD': { speedMultiplier: 0.7, obstacleMultiplier: 1.5 }
+        },
+        MAX_OBSTACLE_COUNT: 10,  // Maximum number of obstacles
+        FOOD_TYPES: [
+            { type: 'regular', color: 0x00ff00, points: 1, speedEffect: 0 },
+            { type: 'special', color: 0x00ffff, points: 5, speedEffect: -10 },
+            { type: 'rare', color: 0xff00ff, points: 10, speedEffect: 10 }
+        ],
+        COMBO_TIMEOUT: 5000,     // Milliseconds to get next food for combo
+        HIGH_SCORES_COUNT: 5     // Number of high scores to save
+    };
 
-        // Game configuration
-        const CONFIG = {
-            GRID_SIZE: 20,           // Number of units across/deep
-            CELL_SIZE: 1,            // Size of each grid cell/snake segment
-            BASE_SPEED: 150,         // Base milliseconds between updates
-            DIFFICULTY_LEVELS: {
-                'EASY': { speedMultiplier: 1.3, obstacleMultiplier: 0.5 },
-                'NORMAL': { speedMultiplier: 1.0, obstacleMultiplier: 1.0 },
-                'HARD': { speedMultiplier: 0.7, obstacleMultiplier: 1.5 }
-            },
-            MAX_OBSTACLE_COUNT: 10,  // Maximum number of obstacles
-            FOOD_TYPES: [
-                { type: 'regular', color: 0x00ff00, points: 1, speedEffect: 0 },
-                { type: 'special', color: 0x00ffff, points: 5, speedEffect: -10 },
-                { type: 'rare', color: 0xff00ff, points: 10, speedEffect: 10 }
-            ],
-            COMBO_TIMEOUT: 5000,     // Milliseconds to get next food for combo
-            HIGH_SCORES_COUNT: 5     // Number of high scores to save
-        };
-
-        // --- Particle System for Effects ---
-        class ParticleSystem {
-            constructor(scene) {
-                this.scene = scene;
-                this.particles = [];
+    // --- Particle System for Effects ---
+    class ParticleSystem {
+        constructor(scene) {
+            this.scene = scene;
+            this.particles = [];
+            this.geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2); // Shared geometry
+        }
+        
+        createFoodEffect(position, color) {
+            const count = 20;
+            for (let i = 0; i < count; i++) {
+                const material = new THREE.MeshBasicMaterial({
+                    color: color || 0x00ff00,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const particle = new THREE.Mesh(this.geometry, material);
+                particle.position.copy(position);
+                const velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.1,
+                    (Math.random()) * 0.1,
+                    (Math.random() - 0.5) * 0.1
+                );
+                this.scene.add(particle);
+                this.particles.push({
+                    mesh: particle,
+                    velocity: velocity,
+                    life: 1.0,
+                    decay: 0.02 + Math.random() * 0.03
+                });
+            }
+        }
+        
+        update() {
+            for (let i = this.particles.length - 1; i >= 0; i--) {
+                const particle = this.particles[i];
+                particle.mesh.position.add(particle.velocity);
+                particle.velocity.y -= 0.003; // Gravity
+                particle.life -= particle.decay;
+                particle.mesh.material.opacity = particle.life;
                 
-                // Shared geometry for all particles
-                this.geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-            }
-            
-            createFoodEffect(position, color) {
-                const count = 20; // Number of particles
-                
-                for (let i = 0; i < count; i++) {
-                    // Create particle
-                    const material = new THREE.MeshBasicMaterial({
-                        color: color || 0x00ff00,
-                        transparent: true,
-                        opacity: 0.9
-                    });
-                    
-                    const particle = new THREE.Mesh(this.geometry, material);
-                    
-                    // Set initial position
-                    particle.position.copy(position);
-                    
-                    // Set random velocity
-                    const velocity = new THREE.Vector3(
-                        (Math.random() - 0.5) * 0.1,
-                        (Math.random()) * 0.1,
-                        (Math.random() - 0.5) * 0.1
-                    );
-                    
-                    // Add to scene
-                    this.scene.add(particle);
-                    
-                    // Store particle data
-                    this.particles.push({
-                        mesh: particle,
-                        velocity: velocity,
-                        life: 1.0,  // Life from 1.0 to 0.0
-                        decay: 0.02 + Math.random() * 0.03 // Random decay rate
-                    });
-                }
-            }
-            
-            update() {
-                // Update all particles
-                for (let i = this.particles.length - 1; i >= 0; i--) {
-                    const particle = this.particles[i];
-                    
-                    // Update position
-                    particle.mesh.position.add(particle.velocity);
-                    
-                    // Simulate gravity
-                    particle.velocity.y -= 0.003;
-
-                    // Update life
-                    particle.life -= particle.decay;
-                    
-                    // Update opacity based on life
-                    particle.mesh.material.opacity = particle.life;
-                    
-                    // Remove dead particles
-                    if (particle.life <= 0) {
-                        this.scene.remove(particle.mesh);
-                        particle.mesh.material.dispose();
-                        this.particles.splice(i, 1);
-                    }
-                }
-            }
-            
-            clear() {
-                // Remove all particles
-                for (const particle of this.particles) {
+                if (particle.life <= 0) {
                     this.scene.remove(particle.mesh);
                     particle.mesh.material.dispose();
-                    particle.mesh.geometry.dispose();
+                    // particle.mesh.geometry.dispose(); // Geometry is shared, don't dispose here
+                    this.particles.splice(i, 1);
                 }
-                this.particles = [];
             }
         }
+        
+        clear() {
+            for (const particle of this.particles) {
+                this.scene.remove(particle.mesh);
+                particle.mesh.material.dispose();
+            }
+            this.particles = [];
+            // Note: Shared geometry (this.geometry) is not disposed here,
+            // as it might be needed again. Dispose it if ParticleSystem itself is destroyed.
+        }
+    }
 
-        // Game state management
-        const GameState = {
-            MENU: 'menu',
-            PLAYING: 'playing',
-            PAUSED: 'paused',
-            GAME_OVER: 'gameOver',
-            currentState: 'menu',
+    // Game state management
+    const GameState = {
+        MENU: 'menu',
+        PLAYING: 'playing',
+        PAUSED: 'paused',
+        GAME_OVER: 'gameOver',
+        currentState: 'menu',
+        
+        changeState(newState) {
+            this.currentState = newState;
+            switch(newState) {
+                case this.MENU:
+                    document.getElementById('gameScreen').style.display = 'flex';
+                    document.getElementById('startScreen').style.display = 'block';
+                    document.getElementById('gameOverScreen').style.display = 'none';
+                    document.getElementById('pauseScreen').style.display = 'none';
+                    break;
+                case this.PLAYING:
+                    document.getElementById('gameScreen').style.display = 'none';
+                    break;
+                case this.PAUSED:
+                    document.getElementById('gameScreen').style.display = 'flex';
+                    document.getElementById('startScreen').style.display = 'none';
+                    document.getElementById('gameOverScreen').style.display = 'none';
+                    document.getElementById('pauseScreen').style.display = 'block';
+                    break;
+                case this.GAME_OVER:
+                    document.getElementById('gameScreen').style.display = 'flex';
+                    document.getElementById('startScreen').style.display = 'none';
+                    document.getElementById('gameOverScreen').style.display = 'block';
+                    document.getElementById('pauseScreen').style.display = 'none';
+                    document.getElementById('gameOverSound').play();
+                    break;
+            }
+        }
+    };
+
+    // --- Matrix Rain Background Effect ---
+    class MatrixRain {
+        constructor() {
+            this.canvas = document.getElementById('matrixCanvas');
+            this.ctx = this.canvas.getContext('2d');
+            this.resize();
             
-            changeState(newState) {
-                this.currentState = newState;
+            this.fontSize = 14;
+            this.columns = Math.floor(this.canvas.width / this.fontSize);
+            this.drops = [];
+            this.characters = '01アイウエオカキクケコサシスセソタチツテトナニヌネ<>{}[]()+-*/%=#@&?*:･ﾟ✧  ≡       ░▒░▒░▒▓█║│·▓▒░█░▒▓█║│·▓▒░█░▒▓█║│·▓▒░█䷀    ▙⁞    ░▒▓█║│     ·▓▒░█▄▀■■▄▬▌▐     ⁞▏▄▀■■▄▬▌▐ ▄▀■■▄▬▌▐ .  ▛   ⁞▏ ▏ ⁚⁝   .';
+            this.resetDrops();
+            this.animate = this.animate.bind(this);
+            this.animate(); // Start animation
+            window.addEventListener('resize', this.handleResize.bind(this));
+        }
+        
+        handleResize() {
+            this.resize();
+            this.columns = Math.floor(this.canvas.width / this.fontSize);
+            this.resetDrops();
+        }
+
+        resize() {
+            this.canvas.width = window.innerWidth;
+            this.canvas.height = window.innerHeight;
+        }
+        
+        resetDrops() {
+            this.drops = [];
+            for(let i = 0; i < this.columns; i++) {
+                this.drops[i] = Math.floor(Math.random() * -100); // Start off-screen
+            }
+        }
+        
+        animate() {
+            // Show rain on all screens as per previous request, including PLAYING
+            if (GameState.currentState === GameState.MENU || 
+                GameState.currentState === GameState.PAUSED || 
+                GameState.currentState === GameState.GAME_OVER ||
+                GameState.currentState === GameState.PLAYING) {
+
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; // Fading effect
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 
-                // Handle UI changes based on state
-                switch(newState) {
-                    case this.MENU:
-                        document.getElementById('gameScreen').style.display = 'flex';
-                        document.getElementById('startScreen').style.display = 'block';
-                        document.getElementById('gameOverScreen').style.display = 'none';
-                        break;
-                    case this.PLAYING:
-                        document.getElementById('gameScreen').style.display = 'none';
-                        break;
-                    case this.PAUSED:
-                        document.getElementById('gameScreen').style.display = 'flex';
-                        document.getElementById('startScreen').style.display = 'none';
-                        document.getElementById('gameOverScreen').style.display = 'none';
-                        document.getElementById('pauseScreen').style.display = 'block';
-                        break;
-                    case this.GAME_OVER:
-                        document.getElementById('gameScreen').style.display = 'flex';
-                        document.getElementById('startScreen').style.display = 'none';
-                        document.getElementById('gameOverScreen').style.display = 'block';
-                        // The score will be updated by the game instance when it triggers game over
-                        document.getElementById('gameOverSound').play();
-                        break;
-                }
-            }
-        };
-
-        // --- Matrix Rain Background Effect ---
-        class MatrixRain {
-            constructor() {
-                this.canvas = document.getElementById('matrixCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.resize();
+                this.ctx.fillStyle = '#0f0'; // Matrix character color
+                this.ctx.font = this.fontSize + 'px monospace';
                 
-                this.fontSize = 14;
-                this.columns = Math.floor(this.canvas.width / this.fontSize);
-                this.drops = [];
-                this.characters = '01アイウエオカキクケコサシスセソタチツテトナニヌネ<>{}[]()+-*/%=#@&?*:･ﾟ✧  ≡       ░▒░▒░▒▓█║│·▓▒░█░▒▓█║│·▓▒░█░▒▓█║│·▓▒░█䷀    ▙⁞    ░▒▓█║│     ·▓▒░█▄▀■■▄▬▌▐     ⁞▏▄▀■■▄▬▌▐ ▄▀■■▄▬▌▐ .  ▛   ⁞▏ ▏ ⁚⁝   .';
-
-                this.resetDrops();
-
-                this.animate = this.animate.bind(this);
-                this.animate();
-
-                window.addEventListener('resize', this.handleResize.bind(this));
-            }
-            
-            handleResize() {
-                this.resize();
-                this.columns = Math.floor(this.canvas.width / this.fontSize);
-                this.resetDrops();
-            }
-
-            resize() {
-                this.canvas.width = window.innerWidth;
-                this.canvas.height = window.innerHeight;
-            }
-            
-            resetDrops() {
-                this.drops = [];
-                for(let i = 0; i < this.columns; i++) {
-                    // Start drops at random negative positions for staggered effect
-                    this.drops[i] = Math.floor(Math.random() * -100);
-                }
-            }
-            
-            animate() {
-                // Check if the game is in menu, paused, OR game over state
-                if (GameState.currentState === GameState.MENU || 
-                    GameState.currentState === GameState.PAUSED || 
-                    GameState.currentState === GameState.GAME_OVER ||
-                    GameState.currentState === GameState.PLAYING) { // Added PLAYING back, assuming you still want it there!
-
-                    // Semi-transparent background to create fade effect
-                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                for(let i = 0; i < this.drops.length; i++) {
+                    const text = this.characters.charAt(Math.floor(Math.random() * this.characters.length));
+                    this.ctx.fillText(text, i * this.fontSize, this.drops[i] * this.fontSize);
                     
-                    this.ctx.fillStyle = '#0f0'; // Or your matrix color
-                    this.ctx.font = this.fontSize + 'px monospace';
-                    
-                    for(let i = 0; i < this.drops.length; i++) {
-                        const text = this.characters.charAt(Math.floor(Math.random() * this.characters.length));
-                        this.ctx.fillText(text, i * this.fontSize, this.drops[i] * this.fontSize);
-                        
-                        if(this.drops[i] * this.fontSize > this.canvas.height && Math.random() > 0.975) {
-                            this.drops[i] = 0;
-                        }
-                        this.drops[i]++;
+                    if(this.drops[i] * this.fontSize > this.canvas.height && Math.random() > 0.975) {
+                        this.drops[i] = 0; // Reset drop
                     }
+                    this.drops[i]++;
                 }
-                requestAnimationFrame(this.animate);
             }
+            requestAnimationFrame(this.animate);
+        }
+    } // <-- Make sure this curly brace properly closes the MatrixRain class
 
-          
-        // --- Object pooling for performance optimization ---
-        class ObjectPool {
-            constructor(createFunc, initialCount = 10) {
-                this.pool = [];
-                this.createFunc = createFunc;
-                
-                // Populate the pool initially
-                for (let i = 0; i < initialCount; i++) {
-                    this.pool.push(this.createFunc());
-                }
-            }
+    // --- Object pooling for performance optimization ---
+    class ObjectPool {
+        constructor(createFunc, initialCount = 10) {
+            this.pool = [];
+            this.createFunc = createFunc;
             
-            get() {
-                if (this.pool.length > 0) {
-                    return this.pool.pop();
-                }
-                return this.createFunc();
-            }
-            
-            release(object) {
-                this.pool.push(object);
-            }
-            
-            clear() {
-                this.pool = [];
+            for (let i = 0; i < initialCount; i++) {
+                this.pool.push(this.createFunc());
             }
         }
-
-        // --- Main Game Class ---
-        class SnakeGame {
-            constructor() {
-                // Initialize properties
-                this.scene = null;
-                this.camera = null;
-                this.renderer = null;
-                this.snake = [];
-                this.food = null;
-                this.obstacles = [];
-                this.direction = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
-                this.nextDirection = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
-                this.score = 0;
-                this.highScore = this.loadHighScores()[0]?.score || 0;
-                this.gameSpeed = CONFIG.BASE_SPEED;
-                this.lastUpdateTime = 0;
-                this.isGameOver = false;
-                this.isPaused = false;
-                this.gameLoopId = null;
-                this.bounds = Math.floor(CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE;
-                this.obstacleCount = CONFIG.MAX_OBSTACLE_COUNT;
-                this.comboCount = 0;
-                this.lastFoodTime = 0;
-                this.currentDifficulty = 'NORMAL';
-                this.particleSystem = null;
-                this.headLight = null;
-
-                // Initialize materials
-                this.materials = {
-                    snakeHead: new THREE.MeshStandardMaterial({
-                        color: 0x0000ff,
-                        emissive: 0x39FF14,
-                        roughness: 0.8,
-                        metalness: 0.22
-                    }),
-                    snakeBody: new THREE.MeshStandardMaterial({
-                        color: 0x00ff00,
-                        emissive: 0x005500,
-                        roughness: 0.3,
-                        metalness: 0.72
-                    }),
-                    food: new THREE.MeshBasicMaterial({
-                        color: 0x00ff00,
-                        wireframe: true
-                    }),
-                    obstacle: new THREE.MeshBasicMaterial({
-                        color: 0x008800,
-                        wireframe: true
-                    }),
-                    specialFood: new THREE.MeshBasicMaterial({
-                        color: 0x00ffff,
-                        wireframe: true
-                    }),
-                    rareFood: new THREE.MeshBasicMaterial({
-                        color: 0xff00ff,
-                        wireframe: true
-                    })
-                };
-
-                // Initialize geometries
-                this.geometries = {
-                    segment: new THREE.BoxGeometry(
-                        CONFIG.CELL_SIZE,
-                        CONFIG.CELL_SIZE,
-                        CONFIG.CELL_SIZE
-                    ),
-                    foodBox: new THREE.BoxGeometry(
-                        CONFIG.CELL_SIZE * 0.8,
-                        CONFIG.CELL_SIZE * 0.8,
-                        CONFIG.CELL_SIZE * 0.8
-                    ),
-                    foodSphere: new THREE.SphereGeometry(
-                        CONFIG.CELL_SIZE * 0.5,
-                        16,
-                        12
-                    ),
-                    foodTetrahedron: new THREE.TetrahedronGeometry(
-                        CONFIG.CELL_SIZE * 0.6,
-                        0
-                    ),
-                    obstacle: new THREE.BoxGeometry(
-                        CONFIG.CELL_SIZE,
-                        CONFIG.CELL_SIZE * 1.5,
-                        CONFIG.CELL_SIZE
-                    )
-                };
-
-                // Initialize object pools
-                this.segmentPool = new ObjectPool(() => {
-                    return new THREE.Mesh(this.geometries.segment, this.materials.snakeBody.clone());
-                }, 20);
-
-                this.obstaclePool = new ObjectPool(() => {
-                    return new THREE.Mesh(this.geometries.obstacle, this.materials.obstacle);
-                }, CONFIG.MAX_OBSTACLE_COUNT * 1.5);
-
-                // Initialize the game
-                this.setupEventListeners();
-                this.init();
-                
-                // Create the matrix rain effect
-                this.matrixRain = new MatrixRain();
-                
-                // Update high scores display
-                this.updateHighScoresTable();
+        
+        get() {
+            if (this.pool.length > 0) {
+                return this.pool.pop();
             }
-            
-            // Place food at random position
-// Place food at random position
-            placeFood() {
-                let foodPos;
-                let validPosition = false;
-                let attempts = 0;
-                const maxAttempts = 100; // Prevent infinite loop
+            return this.createFunc();
+        }
+        
+        release(object) {
+            this.pool.push(object);
+        }
+        
+        clear() {
+            this.pool = [];
+            // Note: This doesn't dispose Three.js objects.
+            // Disposal should be handled by the code that uses the pool
+            // when objects are truly no longer needed by the scene.
+        }
+    }
 
-                // --- THIS IS THE UPDATED PART ---
-                const numCells = CONFIG.GRID_SIZE;
+    // --- Main Game Class ---
+    class SnakeGame {
+        constructor() {
+            this.scene = null;
+            this.camera = null;
+            this.renderer = null;
+            this.composer = null; // For post-processing
+            this.snake = [];
+            this.food = null;
+            this.obstacles = [];
+            this.direction = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
+            this.nextDirection = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
+            this.score = 0;
+            this.highScore = this.loadHighScores()[0]?.score || 0;
+            this.gameSpeed = CONFIG.BASE_SPEED;
+            this.lastUpdateTime = 0;
+            this.isGameOver = false;
+            this.isPaused = false;
+            this.gameLoopId = null;
+            this.bounds = Math.floor(CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE;
+            this.obstacleCount = CONFIG.MAX_OBSTACLE_COUNT;
+            this.comboCount = 0;
+            this.lastFoodTime = 0;
+            this.currentDifficulty = 'NORMAL';
+            this.particleSystem = null;
+            this.headLight = null;
+
+            this.materials = {
+                snakeHead: new THREE.MeshStandardMaterial({
+                    color: 0x39FF14, emissive: 0x39FF14, roughness: 0.8, metalness: 0.22
+                }),
+                snakeBody: new THREE.MeshStandardMaterial({
+                    color: 0x00ff00, emissive: 0x005500, roughness: 0.3, metalness: 0.72
+                }),
+                obstacle: new THREE.MeshStandardMaterial({ // Changed to Standard for lighting
+                    color: 0xff0000, emissive: 0x550000, roughness: 0.5, metalness: 0.1 
+                }),
+                // Food materials defined per type in chooseFoodType
+            };
+            this.geometries = {
+                segment: new THREE.BoxGeometry(CONFIG.CELL_SIZE, CONFIG.CELL_SIZE, CONFIG.CELL_SIZE),
+                foodBox: new THREE.BoxGeometry(CONFIG.CELL_SIZE * 0.8, CONFIG.CELL_SIZE * 0.8, CONFIG.CELL_SIZE * 0.8),
+                foodSphere: new THREE.SphereGeometry(CONFIG.CELL_SIZE * 0.5, 16, 12),
+                foodTetrahedron: new THREE.TetrahedronGeometry(CONFIG.CELL_SIZE * 0.6, 0),
+                obstacle: new THREE.BoxGeometry(CONFIG.CELL_SIZE, CONFIG.CELL_SIZE * 1.5, CONFIG.CELL_SIZE) // Taller obstacles
+            };
+
+            this.segmentPool = new ObjectPool(() => {
+                const segment = new THREE.Mesh(this.geometries.segment, this.materials.snakeBody.clone());
+                // segment.castShadow = true; // If using shadows
+                return segment;
+            }, 20);
+
+            this.obstaclePool = new ObjectPool(() => {
+                const obstacle = new THREE.Mesh(this.geometries.obstacle, this.materials.obstacle.clone());
+                // obstacle.castShadow = true; // If using shadows
+                return obstacle;
+            }, CONFIG.MAX_OBSTACLE_COUNT * 1.5);
+            
+            this.init(); // Call init before matrixRain if matrixRain depends on game elements
+            this.matrixRain = new MatrixRain(); // Initialize after main game setup if it interacts
+            this.setupEventListeners();
+            this.updateHighScoresTable();
+            GameState.changeState(GameState.MENU); // Start in menu
+        }
+        
+        init() {
+            this.scene = new THREE.Scene();
+            this.scene.background = null; // For Matrix rain to show through
+
+            this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+            this.camera.position.set(0, CONFIG.GRID_SIZE * 0.8, CONFIG.GRID_SIZE * 0.9);
+            this.camera.lookAt(0, -CONFIG.GRID_SIZE * 0.1, 0);
+
+            this.renderer = new THREE.WebGLRenderer({
+                canvas: document.getElementById('gameCanvas'),
+                antialias: true,
+                alpha: true // Crucial for transparency
+            });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(window.devicePixelRatio);
+            // this.renderer.shadowMap.enabled = true; // If you add shadows
+
+            // Post-processing for bloom
+            const renderPass = new RenderPass(this.scene, this.camera);
+            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.75);
+            // bloomPass.threshold = 0;
+            // bloomPass.strength = 1.5; // Play with these
+            // bloomPass.radius = 0.5;
+
+            this.composer = new EffectComposer(this.renderer);
+            this.composer.addPass(renderPass);
+            this.composer.addPass(bloomPass);
+
+            const gridHelper = new THREE.GridHelper(CONFIG.GRID_SIZE * CONFIG.CELL_SIZE, CONFIG.GRID_SIZE, 0x008800, 0x004400);
+            gridHelper.position.y = -CONFIG.CELL_SIZE / 2; // Align with snake plane
+            this.scene.add(gridHelper);
+
+            const ambientLight = new THREE.AmbientLight(0x404060, 1); // Soft ambient
+            this.scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffee, 1.5);
+            directionalLight.position.set(8, 15, 10);
+            // directionalLight.castShadow = true;
+            // directionalLight.shadow.mapSize.width = 1024;
+            // directionalLight.shadow.mapSize.height = 1024;
+            this.scene.add(directionalLight);
+
+            this.headLight = new THREE.PointLight(0x39FF14, 2, CONFIG.CELL_SIZE * 5); // Brighter, green light
+            this.headLight.castShadow = false; // Point lights can be expensive for shadows
+            this.scene.add(this.headLight);
+            
+            this.particleSystem = new ParticleSystem(this.scene);
+
+            window.addEventListener('resize', () => {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.composer.setSize(window.innerWidth, window.innerHeight); // Resize composer too
+            }, false);
+        }
+
+        placeFood() {
+            let foodPos;
+            let validPosition = false;
+            let attempts = 0;
+            const maxAttempts = 100; 
+
+            const numCells = CONFIG.GRID_SIZE;
+            
+            while (!validPosition && attempts < maxAttempts) {
+                // Generate random indices within the grid
                 const xIndex = Math.floor(Math.random() * numCells) - Math.floor((numCells - 1) / 2);
                 const zIndex = Math.floor(Math.random() * numCells) - Math.floor((numCells - 1) / 2);
                 
-                const potentialFoodPos = new THREE.Vector3(
+                foodPos = new THREE.Vector3(
                     xIndex * CONFIG.CELL_SIZE,
-                    0, // Assuming food is always on y=0 plane
+                    0, // Food on the grid plane
                     zIndex * CONFIG.CELL_SIZE
                 );
-                // --- END OF UPDATED PART ---
                 
-                while (!validPosition && attempts < maxAttempts) {                    
-                    // Check collision with snake
+                let collisionWithSnake = this.snake.some(segment => 
+                    segment.position.distanceToSquared(foodPos) < (CONFIG.CELL_SIZE * 0.9)**2 // Use distanceSquared
+                );
+                
+                let collisionWithObstacle = this.obstacles.some(obstacle => 
+                    obstacle.position.distanceToSquared(foodPos) < (CONFIG.CELL_SIZE * 0.9)**2
+                );
+                
+                validPosition = !collisionWithSnake && !collisionWithObstacle;
+                attempts++;
+            }
+            
+            if (validPosition) {
+                this.food.position.copy(foodPos);
+            } else {
+                console.warn("Could not find valid position for food. Placing at a default safe spot.");
+                // Fallback: try placing near origin, hoping it's clear
+                this.food.position.set(
+                    (Math.floor(Math.random() * 3) - 1) * CONFIG.CELL_SIZE, 
+                    0, 
+                    (Math.floor(Math.random() * 3) - 1) * CONFIG.CELL_SIZE
+                );
+            }
+        }
+
+        createObstacles() {
+            this.obstacles.forEach(obstacle => {
+                this.scene.remove(obstacle);
+                this.obstaclePool.release(obstacle);
+            });
+            this.obstacles = [];
+            
+            const numCells = CONFIG.GRID_SIZE;
+
+            for (let i = 0; i < this.obstacleCount; i++) {
+                let obstaclePos;
+                let validPosition = false;
+                let attempts = 0;
+                const maxAttempts = 50;
+                
+                while (!validPosition && attempts < maxAttempts) {
+                    const xIndex = Math.floor(Math.random() * numCells) - Math.floor((numCells - 1) / 2);
+                    const zIndex = Math.floor(Math.random() * numCells) - Math.floor((numCells - 1) / 2);
+                    obstaclePos = new THREE.Vector3(
+                        xIndex * CONFIG.CELL_SIZE,
+                        0, // Obstacles on the grid plane, but mesh is taller
+                        zIndex * CONFIG.CELL_SIZE
+                    );
+                    
+                    let tooCloseToStart = obstaclePos.lengthSq() < (CONFIG.CELL_SIZE * 4)**2; // Check squared length
+                    
                     let collisionWithSnake = this.snake.some(segment => 
-                        segment.position.distanceTo(foodPos) < CONFIG.CELL_SIZE * 0.9
+                        segment.position.distanceToSquared(obstaclePos) < (CONFIG.CELL_SIZE * 2)**2
                     );
                     
-                    // Check collision with obstacles
-                    let collisionWithObstacle = this.obstacles.some(obstacle => 
-                        obstacle.position.distanceTo(foodPos) < CONFIG.CELL_SIZE * 0.9
+                    let collisionWithOtherObstacle = this.obstacles.some(existingObstacle => 
+                        existingObstacle.position.distanceToSquared(obstaclePos) < (CONFIG.CELL_SIZE * 1.5)**2 // Ensure spacing
                     );
                     
-                    validPosition = !collisionWithSnake && !collisionWithObstacle;
+                    validPosition = !tooCloseToStart && !collisionWithSnake && !collisionWithOtherObstacle;
                     attempts++;
                 }
                 
                 if (validPosition) {
-                    this.food.position.copy(foodPos);
-                } else {
-                    // Fallback in case we can't find a position after max attempts
-                    console.warn("Could not find valid position for food after max attempts");
-                    this.food.position.set(0, 5, 0); // Place above play area
-                }
-            }
-            
-            // Create obstacles
-            createObstacles() {
-                // Clear existing obstacles
-                for (const obstacle of this.obstacles) {
-                    this.scene.remove(obstacle);
-                }
-                this.obstacles = [];
-                
-                // Create new obstacles
-                for (let i = 0; i < this.obstacleCount; i++) {
-                    let obstaclePos;
-                    let validPosition = false;
-                    let attempts = 0;
-                    const maxAttempts = 50;
-                    
-                    while (!validPosition && attempts < maxAttempts) {
-                        obstaclePos = new THREE.Vector3(
-                            Math.floor(Math.random() * CONFIG.GRID_SIZE - CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE,
-                            0,
-                            Math.floor(Math.random() * CONFIG.GRID_SIZE - CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE
-                        );
-                        
-                        // Check distance from snake start position
-                        let tooCloseToStart = obstaclePos.length() < CONFIG.CELL_SIZE * 3;
-                        
-                        // Check collision with snake and other obstacles
-                        let collisionWithSnake = this.snake.some(segment => 
-                            segment.position.distanceTo(obstaclePos) < CONFIG.CELL_SIZE * 2
-                        );
-                        
-                        let collisionWithObstacle = this.obstacles.some(obstacle => 
-                            obstacle.position.distanceTo(obstaclePos) < CONFIG.CELL_SIZE
-                        );
-                        
-                        validPosition = !tooCloseToStart && !collisionWithSnake && !collisionWithObstacle;
-                        attempts++;
-                    }
-                    
-                    if (validPosition) {
-                        const obstacle = new THREE.Mesh(this.geometries.segment, this.materials.obstacle);
-                        obstacle.position.copy(obstaclePos);
-                        this.obstacles.push(obstacle);
-                        this.scene.add(obstacle);
-                    }
-                }
-            }
-            
-            // Clear all game objects for a new game
-            clearGameObjects() {
-                // Clear snake
-                for (const segment of this.snake) {
-                    this.scene.remove(segment);
-                    this.segmentPool.release(segment);
-                }
-                this.snake = [];
-                
-                // Clear food
-                if (this.food) {
-                    this.scene.remove(this.food);
-                    this.food = null;
-                }
-                
-                // Clear obstacles
-                for (const obstacle of this.obstacles) {
-                    this.scene.remove(obstacle);
-                }
-                this.obstacles = [];
-                
-                // Clear particles
-                this.particleSystem.clear();
-            }
-            
-            // Update game logic
-            update(time) {
-                // Skip update if game is paused, over, or not playing
-                if (this.isPaused || this.isGameOver || GameState.currentState !== GameState.PLAYING) {
-                    return;
-                }
-                
-                // Control game speed
-                if (time - this.lastUpdateTime < this.gameSpeed) {
-                    return;
-                }
-                this.lastUpdateTime = time;
-                
-                // Update direction safely
-                this.direction = this.nextDirection.clone();
-                
-                // Get current head position
-                const head = this.snake[0];
-                const newHeadPos = head.position.clone().add(
-                    this.direction.clone().multiplyScalar(CONFIG.CELL_SIZE)
-                );
-                
-                // Check collision with walls
-                const halfGrid = CONFIG.GRID_SIZE / 2;
-                if (
-                    newHeadPos.x > halfGrid * CONFIG.CELL_SIZE || 
-                    newHeadPos.x < -halfGrid * CONFIG.CELL_SIZE ||
-                    newHeadPos.z > halfGrid * CONFIG.CELL_SIZE || 
-                    newHeadPos.z < -halfGrid * CONFIG.CELL_SIZE
-                ) {
-                    this.triggerGameOver();
-                    return;
-                }
-                
-                // Check collision with self
-                for (let i = 1; i < this.snake.length; i++) {
-                    if (newHeadPos.distanceTo(this.snake[i].position) < CONFIG.CELL_SIZE * 0.25) {
-                        this.triggerGameOver();
-                        return;
-                    }
-                }
-                
-                // Check collision with obstacles
-                for (const obstacle of this.obstacles) {
-                    if (newHeadPos.distanceTo(obstacle.position) < CONFIG.CELL_SIZE * 0.5) {
-                        this.triggerGameOver();
-                        return;
-                    }
-                }
-                
-                // Create new head segment
-                const newHead = this.segmentPool.get();
-                newHead.position.copy(newHeadPos);
-                this.snake.unshift(newHead);
-                this.scene.add(newHead);
-                
-                // Check for food collision
-                if (this.food && newHeadPos.distanceTo(this.food.position) < CONFIG.CELL_SIZE * 0.5) {
-                    // Get food properties
-                    const foodType = this.food.userData;
-                    
-                    // Increase score
-                    const basePoints = foodType.points || 1;
-                    
-                    // Handle combo system
-                    const currentTime = performance.now();
-                    if (currentTime - this.lastFoodTime < CONFIG.COMBO_TIMEOUT) {
-                        this.comboCount++;
-                    } else {
-                        this.comboCount = 1;
-                    }
-                    this.lastFoodTime = currentTime;
-                    
-                    // Calculate final score with combo multiplier
-                    const points = basePoints * this.comboCount;
-                    this.score += points;
-                    
-                    // Show combo
-                    if (this.comboCount > 1) {
-                        const comboElement = document.getElementById('combo');
-                        comboElement.textContent = `Combo x${this.comboCount}! +${points}`;
-                        comboElement.style.opacity = 1;
-                        
-                        // Hide combo text after a delay
-                        setTimeout(() => {
-                            comboElement.style.opacity = 0;
-                        }, 2000);
-                    }
-                    
-                    // Update score display
-                    document.getElementById('info').textContent = `Score: ${this.score} | High: ${Math.max(this.score, this.highScore)}`;
-                    
-                    // Apply speed effect from food type
-                    if (foodType.speedEffect) {
-                        this.gameSpeed = Math.max(50, this.gameSpeed - foodType.speedEffect);
-                    }
-                    
-                    // Play eat sound
-                    document.getElementById('eatSound').play();
-                    
-                    // Create particle effect at food position
-                    this.particleSystem.createFoodEffect(this.food.position.clone(), foodType.color);
-                    
-                    // Place new food
-                    this.chooseFoodType();
-                    this.placeFood();
-                } else {
-                    // Remove tail if not eating
-                    const tail = this.snake.pop();
-                    this.scene.remove(tail);
-                    this.segmentPool.release(tail);
-                }
-                
-                // Update particles
-                this.particleSystem.update();
-                
-                // Animate snake segments (subtle wave effect)
-                for (let i = 0; i < this.snake.length; i++) {
-                    const segment = this.snake[i];
-                    segment.rotation.y = Math.sin(time * 0.001 + i * 0.2) * 0.1;
-                    segment.position.y = Math.sin(time * 0.002 + i * 0.1) * 0.2;
-                }
-                
-                // Animate food
-                if (this.food) {
-                    this.food.rotation.y += 0.05;
-                    this.food.position.y = Math.sin(time * 0.002) * 0.3;
-                }
-            }
-            
-            // Choose a food type based on probability
-            chooseFoodType() {
-                // Food type probability
-                const rand = Math.random();
-                let foodType;
-                
-                if (rand < 0.05) {  // 5% chance for rare food
-                    foodType = CONFIG.FOOD_TYPES[2];
-                } else if (rand < 0.25) {  // 20% chance for special food
-                    foodType = CONFIG.FOOD_TYPES[1];
-                } else {  // 75% chance for regular food
-                    foodType = CONFIG.FOOD_TYPES[0];
-                }
-                
-                // Create food mesh with appropriate material
-                let material;
-                switch(foodType.type) {
-                    case 'special':
-                        material = this.materials.specialFood;
-                        break;
-                    case 'rare':
-                        material = this.materials.rareFood;
-                        break;
-                    default:
-                        material = this.materials.food;
-                }
-                
-                // Create or update food mesh
-                if (!this.food) {
-                    this.food = new THREE.Mesh(
-                        this.geometries.segment,
-                        material
-                    );
-                    this.scene.add(this.food);
-                } else {
-                    this.food.material = material;
-                }
-                
-                // Store food type data
-                this.food.userData = foodType;
-            }
-            
-            // Reset the game
-            resetGame() {
-                // Clear all game objects
-                this.clearGameObjects();
-                
-                // Stop any playing audio
-                document.getElementById('eatSound').pause();
-                document.getElementById('gameOverSound').pause();
-                document.getElementById('bgMusic').pause();
-                
-                // Reset game state
-                this.direction = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
-                this.nextDirection = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
-                this.score = 0;
-                this.gameSpeed = CONFIG.BASE_SPEED * CONFIG.DIFFICULTY_LEVELS[this.currentDifficulty].speedMultiplier;
-                this.isGameOver = false;
-                this.isPaused = false;
-                this.comboCount = 0;
-                this.lastFoodTime = 0;
-                
-                // Update obstacle count based on difficulty
-                this.obstacleCount = Math.floor(CONFIG.MAX_OBSTACLE_COUNT * 
-                                  CONFIG.DIFFICULTY_LEVELS[this.currentDifficulty].obstacleMultiplier);
-                
-                // Create initial snake
-                const startSegment = this.segmentPool.get();
-                startSegment.position.set(0, 0, 0);
-                this.snake.push(startSegment);
-                this.scene.add(startSegment);
-                
-                // Create food
-                this.chooseFoodType();
-                this.placeFood();
-                
-                // Create obstacles
-                this.createObstacles();
-                
-                // Update score display
-                document.getElementById('info').textContent = `Score: ${this.score} | High: ${this.highScore}`;
-                
-                // Start background music
-                const music = document.getElementById('bgMusic');
-                music.volume = 0.3;
-                music.play();
-            }
-            
-            // Start the game
-            startGame() {
-                this.resetGame();
-                GameState.changeState(GameState.PLAYING);
-                this.gameLoop();
-            }
-            
-            // Game over
-            triggerGameOver() {
-                this.isGameOver = true;
-                
-                // Update final score display
-                document.getElementById('finalScore').textContent = `Final Score: ${this.score}`;
-                
-                // Check for high score
-                const highScores = this.loadHighScores();
-                if (this.score > 0) {
-                    // Add current score to high scores
-                    highScores.push({
-                        score: this.score,
-                        difficulty: this.currentDifficulty,
-                        date: new Date().toLocaleDateString()
-                    });
-                    
-                    // Sort high scores
-                    highScores.sort((a, b) => b.score - a.score);
-                    
-                    // Keep only top scores
-                    const topScores = highScores.slice(0, CONFIG.HIGH_SCORES_COUNT);
-                    
-                    // Save high scores
-                    localStorage.setItem('snakeHighScores', JSON.stringify(topScores));
-                    
-                    // Update high score if needed
-                    this.highScore = Math.max(this.score, this.highScore);
-                }
-                
-                // Update high scores table
-                this.updateHighScoresTable();
-                
-                // Stop background music
-                document.getElementById('bgMusic').pause();
-                
-                // Change game state to game over
-                GameState.changeState(GameState.GAME_OVER);
-            }
-            
-            // Game loop
-            gameLoop(time) {
-                // Update current time
-                if (!time) time = 0;
-                
-                // Update game
-                this.update(time);
-                
-                // Render scene
-                this.render();
-                
-                // Continue game loop
-                this.gameLoopId = requestAnimationFrame(this.gameLoop.bind(this));
-            }
-            
-            // Render scene
-            render() {
-                this.renderer.render(this.scene, this.camera);
-            }
-            
-            // Initialize game
-            init() {
-                // Create scene
-                this.scene = new THREE.Scene();
-                this.scene.background = null;
-                
-                // Add fog for depth
-                this.scene.fog = new THREE.Fog(0x000500, CONFIG.GRID_SIZE * 0.8, CONFIG.GRID_SIZE * 2.5);
-                
-                // Create camera
-                this.camera = new THREE.PerspectiveCamera(
-                    65, window.innerWidth / window.innerHeight, 0.1, 1000
-                );
-                this.camera.position.set(0, CONFIG.GRID_SIZE * 0.8, CONFIG.GRID_SIZE * 0.9);
-                this.camera.lookAt(0, -CONFIG.GRID_SIZE * 0.1, 0);
-                
-                // Create renderer
-                this.renderer = new THREE.WebGLRenderer({
-                    canvas: document.getElementById('gameCanvas'),
-                    antialias: true,
-                    alpha: true
-                });
-                this.renderer.setSize(window.innerWidth, window.innerHeight);
-                this.renderer.setPixelRatio(window.devicePixelRatio);
-                
-                // Create grid for visual reference
-                const gridHelper = new THREE.GridHelper(
-                    CONFIG.GRID_SIZE * CONFIG.CELL_SIZE, 
-                    CONFIG.GRID_SIZE,
-                    0x005500,
-                    0x003300
-                );
-                gridHelper.position.y = -CONFIG.CELL_SIZE / 2;
-                this.scene.add(gridHelper);
-                
-                // Add ambient light
-                const ambientLight = new THREE.AmbientLight(0x404060);
-                this.scene.add(ambientLight);
-                
-                // Add directional light
-                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-                directionalLight.position.set(5, 10, 7);
-                this.scene.add(directionalLight);
-                
-                // Create head light
-                this.headLight = new THREE.PointLight(0x00ff00, 1, CONFIG.CELL_SIZE * 3);
-                this.scene.add(this.headLight);
-                
-                // Create particle system
-                this.particleSystem = new ParticleSystem(this.scene);
-                
-                // Handle window resize
-                window.addEventListener('resize', () => {
-                    this.camera.aspect = window.innerWidth / window.innerHeight;
-                    this.camera.updateProjectionMatrix();
-                    this.renderer.setSize(window.innerWidth, window.innerHeight);
-                });
-            }
-            
-            // Set up event listeners
-            setupEventListeners() {
-                // Keyboard controls
-                document.addEventListener('keydown', this.handleKeyDown.bind(this));
-                
-                // Touch controls with prevention
-                const touchControls = document.getElementById('touchControls');
-                const preventDefault = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                };
-                
-                document.getElementById('upBtn').addEventListener('touchstart', (e) => {
-                    preventDefault(e);
-                    this.handleDirectionChange(0, 0, -1);
-                });
-                document.getElementById('downBtn').addEventListener('touchstart', (e) => {
-                    preventDefault(e);
-                    this.handleDirectionChange(0, 0, 1);
-                });
-                document.getElementById('leftBtn').addEventListener('touchstart', (e) => {
-                    preventDefault(e);
-                    this.handleDirectionChange(-1, 0, 0);
-                });
-                document.getElementById('rightBtn').addEventListener('touchstart', (e) => {
-                    preventDefault(e);
-                    this.handleDirectionChange(1, 0, 0);
-                });
-                
-                // Prevent touch events on game canvas
-                document.getElementById('gameCanvas').addEventListener('touchstart', preventDefault, { passive: false });
-                document.getElementById('gameCanvas').addEventListener('touchmove', preventDefault, { passive: false });
-                
-                // Show touch controls on mobile devices
-                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                    touchControls.style.display = 'block';
-                }
-                
-                // UI buttons
-                document.getElementById('startBtn').addEventListener('click', () => {
-                    this.startGame();
-                });
-                
-                document.getElementById('restartBtn').addEventListener('click', () => {
-                    this.startGame();
-                });
-                
-                document.getElementById('menuBtn').addEventListener('click', () => {
-                    GameState.changeState(GameState.MENU);
-                });
-                
-                document.getElementById('difficultyBtn').addEventListener('click', () => {
-                    this.cycleDifficulty();
-                });
-                
-                // Pause screen buttons
-                document.getElementById('resumeBtn').addEventListener('click', () => {
-                    this.togglePause();
-                });
-                
-                document.getElementById('quitBtn').addEventListener('click', () => {
-                    GameState.changeState(GameState.MENU);
-                });
-            }
-            
-            // Cycle through difficulty levels
-            cycleDifficulty() {
-                const difficulties = Object.keys(CONFIG.DIFFICULTY_LEVELS);
-                const currentIndex = difficulties.indexOf(this.currentDifficulty);
-                const nextIndex = (currentIndex + 1) % difficulties.length;
-                this.currentDifficulty = difficulties[nextIndex];
-                
-                document.getElementById('difficultyBtn').textContent = `DIFFICULTY: ${this.currentDifficulty}`;
-            }
-            
-            // Handle keyboard input
-            handleKeyDown(event) {
-                if (GameState.currentState === GameState.PLAYING) {
-                    switch(event.key) {
-                        case 'ArrowUp':
-                            this.handleDirectionChange(0, 0, -1);
-                            event.preventDefault();
-                            break;
-                        case 'ArrowDown':
-                            this.handleDirectionChange(0, 0, 1);
-                            event.preventDefault();
-                            break;
-                        case 'ArrowLeft':
-                            this.handleDirectionChange(-1, 0, 0);
-                            event.preventDefault();
-                            break;
-                        case 'ArrowRight':
-                            this.handleDirectionChange(1, 0, 0);
-                            event.preventDefault();
-                            break;
-                        case 'p':
-                        case 'P':
-                            this.togglePause();
-                            event.preventDefault();
-                            break;
-                    }
-                } else if (GameState.currentState === GameState.GAME_OVER || 
-                           GameState.currentState === GameState.MENU) {
-                    if (event.key === 'Enter') {
-                        this.startGame();
-                        event.preventDefault();
-                    }
-                }
-            }
-            
-            // Handle direction change
-            handleDirectionChange(x, y, z) {
-                const newDirection = new THREE.Vector3(x, y, z).normalize().multiplyScalar(CONFIG.CELL_SIZE);
-                
-                // Prevent 180-degree turns (moving directly backwards)
-                if (this.direction.dot(newDirection) === -CONFIG.CELL_SIZE * CONFIG.CELL_SIZE) {
-                    return;
-                }
-                
-                this.nextDirection = newDirection;
-            }
-            
-            // Toggle pause state
-            togglePause() {
-                this.isPaused = !this.isPaused;
-                
-                if (this.isPaused) {
-                    // TODO: Show pause screen
-                    document.getElementById('bgMusic').pause();
-                } else {
-                    document.getElementById('bgMusic').play();
-                }
-            }
-            
-            // Load high scores from local storage
-            loadHighScores() {
-                const scores = localStorage.getItem('snakeHighScores');
-                return scores ? JSON.parse(scores) : [];
-            }
-            
-            // Update high scores table
-            updateHighScoresTable() {
-                const highScores = this.loadHighScores();
-                const table = document.getElementById('scoresTable');
-                
-                // Clear table except header
-                while (table.rows.length > 1) {
-                    table.deleteRow(1);
-                }
-                
-                // Add high scores to table
-                for (let i = 0; i < highScores.length; i++) {
-                    const row = table.insertRow(-1);
-                    
-                    const rankCell = row.insertCell(0);
-                    rankCell.textContent = i + 1;
-                    
-                    const scoreCell = row.insertCell(1);
-                    scoreCell.textContent = highScores[i].score;
-                    
-                    const difficultyCell = row.insertCell(2);
-                    difficultyCell.textContent = highScores[i].difficulty;
+                    const obstacle = this.obstaclePool.get();
+                    obstacle.position.copy(obstaclePos);
+                    obstacle.position.y = (CONFIG.CELL_SIZE * 1.5 - CONFIG.CELL_SIZE) / 2 - CONFIG.CELL_SIZE / 2; // Adjust Y to sit on grid
+                    this.obstacles.push(obstacle);
+                    this.scene.add(obstacle);
                 }
             }
         }
 
-        // Create and start the game
-        const game = new SnakeGame();
+        clearGameObjects() {
+            this.snake.forEach(segment => {
+                this.scene.remove(segment);
+                this.segmentPool.release(segment);
+            });
+            this.snake = [];
+            
+            if (this.food) {
+                this.scene.remove(this.food);
+                // No pool for food as it's a single, changing object
+            }
+            this.food = null; 
+            
+            this.obstacles.forEach(obstacle => {
+                this.scene.remove(obstacle);
+                this.obstaclePool.release(obstacle);
+            });
+            this.obstacles = [];
+            
+            this.particleSystem.clear();
+        }
+
+        update(time) {
+            if (this.isPaused || this.isGameOver || GameState.currentState !== GameState.PLAYING) {
+                return;
+            }
+            
+            if (time - this.lastUpdateTime < this.gameSpeed) {
+                return;
+            }
+            this.lastUpdateTime = time;
+            
+            this.direction.copy(this.nextDirection); // More robust copy
+            
+            const head = this.snake[0];
+            const newHeadPos = head.position.clone().add(this.direction); // CELL_SIZE is incorporated in direction
+            
+            const halfGridWorld = (CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE;
+            if (
+                newHeadPos.x >= halfGridWorld || newHeadPos.x < -halfGridWorld ||
+                newHeadPos.z >= halfGridWorld || newHeadPos.z < -halfGridWorld
+            ) {
+                this.triggerGameOver();
+                return;
+            }
+            
+            for (let i = 1; i < this.snake.length; i++) {
+                if (newHeadPos.distanceToSquared(this.snake[i].position) < (CONFIG.CELL_SIZE * 0.1)**2) { // Tighter collision
+                    this.triggerGameOver();
+                    return;
+                }
+            }
+            
+            for (const obstacle of this.obstacles) {
+                if (newHeadPos.distanceToSquared(obstacle.position) < (CONFIG.CELL_SIZE * 0.75)**2) { // Check collision with obstacle
+                    this.triggerGameOver();
+                    return;
+                }
+            }
+            
+            const newHead = this.segmentPool.get();
+            newHead.position.copy(newHeadPos);
+            newHead.material = this.materials.snakeHead; // Head material
+            if (this.snake.length > 0) {
+                this.snake[0].material = this.materials.snakeBody; // Old head becomes body
+            }
+            this.snake.unshift(newHead);
+            this.scene.add(newHead);
+            this.headLight.position.copy(newHeadPos); // Light follows head
+
+            if (this.food && newHeadPos.distanceToSquared(this.food.position) < (CONFIG.CELL_SIZE * 0.75)**2) {
+                const foodType = this.food.userData;
+                const basePoints = foodType.points || 1;
+                
+                const currentTime = performance.now();
+                if (currentTime - this.lastFoodTime < CONFIG.COMBO_TIMEOUT) {
+                    this.comboCount++;
+                } else {
+                    this.comboCount = 1;
+                }
+                this.lastFoodTime = currentTime;
+                
+                const points = basePoints * this.comboCount;
+                this.score += points;
+                
+                if (this.comboCount > 1) {
+                    const comboElement = document.getElementById('combo');
+                    comboElement.textContent = `Combo x${this.comboCount}! +${points}`;
+                    comboElement.style.opacity = 1;
+                    setTimeout(() => { comboElement.style.opacity = 0; }, 2000);
+                }
+                
+                document.getElementById('info').textContent = `Score: ${this.score} | High: ${Math.max(this.score, this.highScore)}`;
+                
+                if (foodType.speedEffect) {
+                    this.gameSpeed = Math.max(50, this.gameSpeed + foodType.speedEffect); // Note: special food had -10, rare had +10
+                }
+                
+                document.getElementById('eatSound').currentTime = 0;
+                document.getElementById('eatSound').play();
+                this.particleSystem.createFoodEffect(this.food.position.clone(), new THREE.Color(foodType.color));
+                
+                this.chooseFoodType(); // Gets new food type, applies material
+                this.placeFood();      // Places it
+            } else {
+                const tail = this.snake.pop();
+                this.scene.remove(tail);
+                this.segmentPool.release(tail);
+            }
+            
+            this.particleSystem.update();
+            
+            for (let i = 0; i < this.snake.length; i++) {
+                const segment = this.snake[i];
+                segment.rotation.y += Math.sin(time * 0.0001 + i * 0.1) * 0.01; // Slower, more subtle
+                segment.position.y = Math.sin(time * 0.002 + i * 0.2) * 0.15;  // Subtle bob
+            }
+            
+            if (this.food) {
+                this.food.rotation.x += 0.01;
+                this.food.rotation.y += 0.02;
+                this.food.position.y = Math.sin(time * 0.0025) * 0.25 + 0.1; // Bobbing food
+            }
+        }
+
+        chooseFoodType() {
+            const rand = Math.random();
+            let foodTypeData;
+            let geometry;
+
+            if (rand < 0.05) { // 5% rare
+                foodTypeData = CONFIG.FOOD_TYPES[2];
+                geometry = this.geometries.foodTetrahedron;
+            } else if (rand < 0.25) { // 20% special
+                foodTypeData = CONFIG.FOOD_TYPES[1];
+                geometry = this.geometries.foodSphere;
+            } else { // 75% regular
+                foodTypeData = CONFIG.FOOD_TYPES[0];
+                geometry = this.geometries.foodBox;
+            }
+            
+            const material = new THREE.MeshStandardMaterial({ // Use Standard for lighting
+                color: foodTypeData.color,
+                emissive: foodTypeData.color, // Make food glow
+                emissiveIntensity: 0.8,
+                roughness: 0.4,
+                metalness: 0.1
+            });
+
+            if (!this.food) {
+                this.food = new THREE.Mesh(geometry, material);
+                this.scene.add(this.food);
+            } else {
+                this.food.geometry.dispose(); // Dispose old geometry
+                this.food.geometry = geometry;
+                this.food.material.dispose(); // Dispose old material
+                this.food.material = material;
+            }
+            this.food.userData = foodTypeData;
+        }
         
-        // Start the game when the page loads
-        window.addEventListener('load', () => {
-            GameState.changeState(GameState.MENU);
-        });
-    </script>
+        resetGame() {
+            this.clearGameObjects();
+            
+            // Stop sounds
+            ['eatSound', 'gameOverSound', 'bgMusic'].forEach(id => {
+                const sound = document.getElementById(id);
+                sound.pause();
+                sound.currentTime = 0;
+            });
+            
+            this.direction.set(CONFIG.CELL_SIZE, 0, 0);
+            this.nextDirection.set(CONFIG.CELL_SIZE, 0, 0);
+            this.score = 0;
+            this.gameSpeed = CONFIG.BASE_SPEED * CONFIG.DIFFICULTY_LEVELS[this.currentDifficulty].speedMultiplier;
+            this.isGameOver = false;
+            this.isPaused = false;
+            GameState.currentState = GameState.PLAYING; // Set this before calling things that depend on it.
+            this.comboCount = 0;
+            this.lastFoodTime = 0;
+            
+            this.obstacleCount = Math.floor(CONFIG.MAX_OBSTACLE_COUNT * CONFIG.DIFFICULTY_LEVELS[this.currentDifficulty].obstacleMultiplier);
+            
+            const startSegment = this.segmentPool.get();
+            startSegment.position.set(0, 0, 0);
+            startSegment.material = this.materials.snakeHead; // Start with head material
+            this.snake.push(startSegment);
+            this.scene.add(startSegment);
+            this.headLight.position.copy(startSegment.position); // Initial light pos
+            
+            this.chooseFoodType();
+            this.placeFood();
+            this.createObstacles();
+            
+            document.getElementById('info').textContent = `Score: ${this.score} | High: ${this.highScore}`;
+            
+            const music = document.getElementById('bgMusic');
+            music.volume = 0.2; // Quieter music
+            music.play().catch(e => console.warn("Music play failed:", e)); // Catch promise
+        }
+        
+        startGame() {
+            this.resetGame(); // This sets GameState.PLAYING internally now
+            GameState.changeState(GameState.PLAYING); // Ensure UI updates
+            this.lastUpdateTime = performance.now(); // Initialize lastUpdateTime
+            if (this.gameLoopId) cancelAnimationFrame(this.gameLoopId); // Clear old loop
+            this.gameLoop();
+        }
+        
+        triggerGameOver() {
+            if (this.isGameOver) return; // Prevent multiple triggers
+            this.isGameOver = true;
+            document.getElementById('finalScore').textContent = `Final Score: ${this.score}`;
+            
+            const highScores = this.loadHighScores();
+            if (this.score > 0) {
+                highScores.push({ score: this.score, difficulty: this.currentDifficulty, date: new Date().toLocaleDateString() });
+                highScores.sort((a, b) => b.score - a.score);
+                const topScores = highScores.slice(0, CONFIG.HIGH_SCORES_COUNT);
+                localStorage.setItem('snakeHighScores', JSON.stringify(topScores));
+                this.highScore = Math.max(this.score, this.highScore); // Update current session high score
+            }
+            this.updateHighScoresTable();
+            document.getElementById('bgMusic').pause();
+            GameState.changeState(GameState.GAME_OVER);
+        }
+        
+        gameLoop(time) { // time is passed by requestAnimationFrame
+            if (!this.isGameOver && GameState.currentState === GameState.PLAYING) {
+                this.update(time || performance.now()); // Use performance.now if time is undefined initially
+            }
+            this.render();
+            if (!this.isGameOver) { // Only loop if not game over
+                 this.gameLoopId = requestAnimationFrame(this.gameLoop.bind(this));
+            } else {
+                 if (this.gameLoopId) cancelAnimationFrame(this.gameLoopId); // Ensure loop stops
+            }
+        }
+        
+        render() {
+            // this.renderer.render(this.scene, this.camera); // When using composer
+            if (this.composer) {
+                this.composer.render();
+            } else if (this.renderer && this.scene && this.camera) {
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+        
+        setupEventListeners() {
+            document.addEventListener('keydown', this.handleKeyDown.bind(this));
+            
+            const touchControlsDiv = document.getElementById('touchControls');
+            const preventDefaultAndStopPropagation = (e) => { e.preventDefault(); e.stopPropagation(); };
+
+            document.getElementById('upBtn').addEventListener('touchstart', (e) => { preventDefaultAndStopPropagation(e); this.handleDirectionChange(0, 0, -CONFIG.CELL_SIZE); });
+            document.getElementById('downBtn').addEventListener('touchstart', (e) => { preventDefaultAndStopPropagation(e); this.handleDirectionChange(0, 0, CONFIG.CELL_SIZE); });
+            document.getElementById('leftBtn').addEventListener('touchstart', (e) => { preventDefaultAndStopPropagation(e); this.handleDirectionChange(-CONFIG.CELL_SIZE, 0, 0); });
+            document.getElementById('rightBtn').addEventListener('touchstart', (e) => { preventDefaultAndStopPropagation(e); this.handleDirectionChange(CONFIG.CELL_SIZE, 0, 0); });
+            
+            const gameCanvas = document.getElementById('gameCanvas');
+            gameCanvas.addEventListener('touchstart', preventDefaultAndStopPropagation, { passive: false });
+            gameCanvas.addEventListener('touchmove', preventDefaultAndStopPropagation, { passive: false });
+
+            if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                touchControlsDiv.style.display = 'block';
+            }
+            
+            document.getElementById('startBtn').addEventListener('click', () => this.startGame());
+            document.getElementById('restartBtn').addEventListener('click', () => this.startGame());
+            document.getElementById('menuBtn').addEventListener('click', () => GameState.changeState(GameState.MENU));
+            document.getElementById('difficultyBtn').addEventListener('click', () => this.cycleDifficulty());
+            document.getElementById('resumeBtn').addEventListener('click', () => this.togglePause());
+            document.getElementById('quitBtn').addEventListener('click', () => {
+                this.isPaused = false; // Ensure unpaused
+                if (this.gameLoopId) cancelAnimationFrame(this.gameLoopId); // Stop game loop
+                document.getElementById('bgMusic').pause();
+                GameState.changeState(GameState.MENU);
+            });
+        }
+        
+        cycleDifficulty() {
+            const difficulties = Object.keys(CONFIG.DIFFICULTY_LEVELS);
+            const currentIndex = difficulties.indexOf(this.currentDifficulty);
+            const nextIndex = (currentIndex + 1) % difficulties.length;
+            this.currentDifficulty = difficulties[nextIndex];
+            document.getElementById('difficultyBtn').textContent = `DIFFICULTY: ${this.currentDifficulty.toUpperCase()}`;
+        }
+        
+        handleKeyDown(event) {
+            if (GameState.currentState === GameState.PLAYING && !this.isPaused) {
+                switch(event.key) {
+                    case 'ArrowUp': case 'w': case 'W': this.handleDirectionChange(0, 0, -CONFIG.CELL_SIZE); event.preventDefault(); break;
+                    case 'ArrowDown': case 's': case 'S': this.handleDirectionChange(0, 0, CONFIG.CELL_SIZE); event.preventDefault(); break;
+                    case 'ArrowLeft': case 'a': case 'A': this.handleDirectionChange(-CONFIG.CELL_SIZE, 0, 0); event.preventDefault(); break;
+                    case 'ArrowRight': case 'd': case 'D': this.handleDirectionChange(CONFIG.CELL_SIZE, 0, 0); event.preventDefault(); break;
+                    case 'p': case 'P': this.togglePause(); event.preventDefault(); break;
+                }
+            } else if (GameState.currentState === GameState.PAUSED && (event.key === 'p' || event.key === 'P')) {
+                this.togglePause(); event.preventDefault();
+            } else if ((GameState.currentState === GameState.GAME_OVER || GameState.currentState === GameState.MENU) && event.key === 'Enter') {
+                this.startGame(); event.preventDefault();
+            }
+        }
+        
+        handleDirectionChange(dx, dy, dz) {
+            const newDir = new THREE.Vector3(dx, dy, dz);
+            // Prevent 180-degree turns. Dot product will be negative.
+            // direction is already scaled by CELL_SIZE
+            if (this.direction.dot(newDir) < - (CONFIG.CELL_SIZE * CONFIG.CELL_SIZE * 0.5) ) { // Compare against negative magnitude squared
+                return;
+            }
+            this.nextDirection.copy(newDir);
+        }
+        
+        togglePause() {
+            if (GameState.currentState !== GameState.PLAYING && GameState.currentState !== GameState.PAUSED) return;
+
+            this.isPaused = !this.isPaused;
+            if (this.isPaused) {
+                GameState.changeState(GameState.PAUSED);
+                document.getElementById('bgMusic').pause();
+                if (this.gameLoopId) cancelAnimationFrame(this.gameLoopId); // Pause game loop
+            } else {
+                GameState.changeState(GameState.PLAYING);
+                document.getElementById('bgMusic').play().catch(e => console.warn("Music play failed:", e));
+                this.lastUpdateTime = performance.now(); // Reset update timer to prevent jump
+                this.gameLoop(); // Resume game loop
+            }
+        }
+        
+        loadHighScores() {
+            const scores = localStorage.getItem('snakeHighScores');
+            return scores ? JSON.parse(scores) : [];
+        }
+        
+        updateHighScoresTable() {
+            const highScores = this.loadHighScores();
+            const table = document.getElementById('scoresTable');
+            while (table.rows.length > 1) { table.deleteRow(1); } // Clear existing
+            
+            highScores.forEach((entry, index) => {
+                const row = table.insertRow(-1);
+                row.insertCell(0).textContent = index + 1;
+                row.insertCell(1).textContent = entry.score;
+                row.insertCell(2).textContent = entry.difficulty;
+            });
+        }
+    }
+
+    // Create and start the game
+    const game = new SnakeGame(); // GameState.MENU is set in constructor now.
+    
+    // window.addEventListener('load', () => {
+    //     // GameState.changeState(GameState.MENU); // Already handled in constructor
+    // });
+</script>
 </body>
 </html>
