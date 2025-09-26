@@ -3,27 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matrix Snake 3D - Enhanced</title>
+    <title>Matrix Snake 3D - Complete & Functional</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; color: #0f0; text-shadow: 1px 1px 3px #0f0; font-family: 'Courier New', Courier, monospace; }
-        canvas { display: block; }
-        .game-ui { position: absolute; padding: 10px; background-color: rgba(0, 20, 0, 0.9); border: 1px solid #0f0; border-radius: 5px; font-size: 1.2em; pointer-events: none; }
-        #info { top: 10px; left: 10px; }
-        #combo { top: 10px; right: 10px; color: #0ff; opacity: 0; transition: opacity 0.3s; }
-        #gameScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: rgba(0, 10, 0, 0.0); z-index: 10; }
-        #startScreen, #gameOverScreen, #pauseScreen { padding: 30px; background-color: rgba(0, 30, 0, 0.7); border: 2px solid #00ff00; color: #2eff00; text-shadow: lime 3px 3px 3px; border-radius: 10px; text-align: center; max-width: 500px; text-emphasis-color: #91ff83; }
-        #gameOverScreen { border-color: #f00; }
-        .title { font-size: 2.5em; margin-bottom: 20px; text-shadow: 2px 2px 5px #11ff00, 1px 1px 3px #eeff00, -3px -3px 3px #11ff00, 0px 2px 5px #2eff00; }
-        .subtitle { font-size: 1.2em; margin-bottom: 30px; }
-        .button { display: inline-block; padding: 10px 20px; margin: 10px; background-color: rgba(0, 40, 0, 0.5); border: 1px solid #aaff00; border-radius: 5px; color: #0f0; cursor: pointer; transition: all 0.2s; pointer-events: auto; }
-        .button:hover { background-color: rgba(0, 120, 0, 0.9); transform: translateY(-5px); box-shadow: 0px 2px 10px #2eff00; }
-        .controls { margin-top: 20px; font-size: 0.9em; opacity: 0.8; }
-        #highScores { margin-top: 20px; text-align: left; width: 100%; }
-        #highScores table { width: 100%; border-collapse: collapse; }
-        #highScores th, #highScores td { padding: 5px; border-bottom: 1px solid rgba(0, 255, 0, 0.5); }
-        #touchControls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; }
-        .touchBtn { width: 60px; height: 60px; background-color: rgba(0, 120, 0, 0.7); border: 1px solid #0f0; border-radius: 50%; margin: 5px; display: inline-flex; justify-content: center; align-items: center; font-size: 20px; cursor: pointer; pointer-events: auto; }
-        #matrixCanvas { position: fixed; top: 0; left: 0; z-index: -1; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: #0f0;
+            text-shadow: 1px 1px 3px #0f0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        canvas {
+            display: block;
+        }
+        .game-ui {
+            position: absolute;
+            padding: 10px;
+            background-color: rgba(0, 20, 0, 0.9);
+            border: 1px solid #0f0;
+            border-radius: 5px;
+            font-size: 1.2em;
+            pointer-events: none;
+        }
+        #info {
+            top: 10px;
+            left: 10px;
+        }
+        #combo {
+            top: 10px;
+            right: 10px;
+            color: #0ff;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #gameScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 10, 0, 0.0);
+            z-index: 10;
+        }
+        #startScreen, #gameOverScreen, #pauseScreen {
+            padding: 30px;
+            background-color: rgba(0, 30, 0, 0.7);
+            border: 2px solid #00ff00;
+            color: #2eff00;
+            text-shadow: lime 3px 3px 3px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+            text-emphasis-color: #91ff83;
+        }
+        #gameOverScreen {
+            border-color: #f00;
+        }
+        .title {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 5px #11ff00, 1px 1px 3px #eeff00, -3px -3px 3px #11ff00, 0px 2px 5px #2eff00;
+        }
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: rgba(0, 40, 0, 0.5);
+            border: 1px solid #aaff00;
+            border-radius: 5px;
+            color: #0f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        .button:hover {
+            background-color: rgba(0, 120, 0, 0.9);
+            transform: translateY(-5px);
+            box-shadow: 0px 2px 10px #2eff00;
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        #highScores {
+            margin-top: 20px;
+            text-align: left;
+            width: 100%;
+        }
+        #highScores table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #highScores th, #highScores td {
+            padding: 5px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.5);
+        }
+        #touchControls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none; /* Hidden by default, shown on mobile */
+        }
+        .touchBtn {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(0, 120, 0, 0.7);
+            border: 1px solid #0f0;
+            border-radius: 50%;
+            margin: 5px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        #matrixCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
     </style>
 </head>
 <body>
@@ -79,7 +189,7 @@
     </div>
 </div>
 
-<!-- Audio elements (Base64 retained as requested) -->
+<!-- Audio elements -->
 <audio id="eatSound" preload="auto">
     <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAFgAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAWMBaq2QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAANIAqJWUEQAFO+gRc5TRJIkiRJEiL///////////8RERERERERVVVVVVVVVVVVVVJEREREREVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/jGMQJA/Aa1flBABBTpGX9hDGMYxw7/+MMYxd/4wxIiI9////jDEQ7/jdEiJERERBaIiIzMzMzIiIiP//MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM/+MYxB4AAANIAAAAADMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM" type="audio/mpeg">
 </audio>
@@ -125,11 +235,9 @@
             { type: 'rare', color: 0xff00ff, points: 10, speedEffect: 10 }
         ],
         COMBO_TIMEOUT: 5000,
-        HIGH_SCORES_COUNT: 5,
-        // NEW: Centralized collision values
-        COLLISION_THRESHOLD_SNAKE: 0.1, // How close snake segments can get to each other
-        COLLISION_THRESHOLD_OBJECT: 0.75, // How close snake can get to food/obstacles
+        HIGH_SCORES_COUNT: 5
     };
+
     // --- Particle System for Effects ---
     class ParticleSystem {
         constructor(scene) {
@@ -140,36 +248,50 @@
         createFoodEffect(position, color) {
             const count = 20;
             for (let i = 0; i < count; i++) {
-                const material = new THREE.MeshBasicMaterial({ color: color || 0x00ff00, transparent: true, opacity: 0.8 });
+                const material = new THREE.MeshBasicMaterial({
+                    color: color || 0x00ff00,
+                    transparent: true,
+                    opacity: 0.8
+                });
                 const particle = new THREE.Mesh(this.geometry, material);
                 particle.position.copy(position);
-                const velocity = new THREE.Vector3((Math.random() - 0.5) * 0.1, (Math.random()) * 0.25, (Math.random() - 0.5) * 0.1);
+                const velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.1,
+                    (Math.random()) * 0.25,
+                    (Math.random() - 0.5) * 0.1
+                );
                 this.scene.add(particle);
-                this.particles.push({ mesh: particle, velocity: velocity, life: 1.0, decay: 0.02 + Math.random() * 0.03 });
+                this.particles.push({
+                    mesh: particle,
+                    velocity: velocity,
+                    life: 1.0,
+                    decay: 0.02 + Math.random() * 0.03
+                });
             }
         }
         update() {
             for (let i = this.particles.length - 1; i >= 0; i--) {
-                const p = this.particles[i];
-                p.mesh.position.add(p.velocity);
-                p.velocity.y -= 0.005; // Gravity
-                p.life -= p.decay;
-                p.mesh.material.opacity = p.life;
-                if (p.life <= 0) {
-                    this.scene.remove(p.mesh);
-                    p.mesh.material.dispose();
+                const particle = this.particles[i];
+                particle.mesh.position.add(particle.velocity);
+                particle.velocity.y -= 0.005; // Gravity
+                particle.life -= particle.decay;
+                particle.mesh.material.opacity = particle.life;
+                if (particle.life <= 0) {
+                    this.scene.remove(particle.mesh);
+                    particle.mesh.material.dispose();
                     this.particles.splice(i, 1);
                 }
             }
         }
         clear() {
-            this.particles.forEach(p => {
-                this.scene.remove(p.mesh);
-                p.mesh.material.dispose();
-            });
+            for (const particle of this.particles) {
+                this.scene.remove(particle.mesh);
+                particle.mesh.material.dispose();
+            }
             this.particles = [];
         }
     }
+
     // Game state management
     const GameState = {
         MENU: 'menu',
@@ -179,33 +301,33 @@
         currentState: 'menu',
         changeState(newState) {
             this.currentState = newState;
-            const gameScreen = document.getElementById('gameScreen');
-            const startScreen = document.getElementById('startScreen');
-            const gameOverScreen = document.getElementById('gameOverScreen');
-            const pauseScreen = document.getElementById('pauseScreen');
-            
-            gameScreen.style.display = 'flex';
-            startScreen.style.display = 'none';
-            gameOverScreen.style.display = 'none';
-            pauseScreen.style.display = 'none';
-
             switch(newState) {
                 case this.MENU:
-                    startScreen.style.display = 'block';
+                    document.getElementById('gameScreen').style.display = 'flex';
+                    document.getElementById('startScreen').style.display = 'block';
+                    document.getElementById('gameOverScreen').style.display = 'none';
+                    document.getElementById('pauseScreen').style.display = 'none';
                     break;
                 case this.PLAYING:
-                    gameScreen.style.display = 'none';
+                    document.getElementById('gameScreen').style.display = 'none';
                     break;
                 case this.PAUSED:
-                    pauseScreen.style.display = 'block';
+                    document.getElementById('gameScreen').style.display = 'flex';
+                    document.getElementById('startScreen').style.display = 'none';
+                    document.getElementById('gameOverScreen').style.display = 'none';
+                    document.getElementById('pauseScreen').style.display = 'block';
                     break;
                 case this.GAME_OVER:
-                    gameOverScreen.style.display = 'block';
+                    document.getElementById('gameScreen').style.display = 'flex';
+                    document.getElementById('startScreen').style.display = 'none';
+                    document.getElementById('gameOverScreen').style.display = 'block';
+                    document.getElementById('pauseScreen').style.display = 'none';
                     document.getElementById('gameOverSound').play();
                     break;
             }
         }
     };
+
     // --- Matrix Rain Background Effect ---
     class MatrixRain {
         constructor() {
@@ -214,15 +336,18 @@
             this.fontSize = 14;
             this.characters = '01アイウエオカキクケコサシスセソタチツテトナニヌネ<>{}[]()+-*/%=#@&?*:･ﾟ✧≡░▒░▒░▒▓║│·⁞▏ ▏⁚⁝.ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ';
             this.animate = this.animate.bind(this);
-            window.addEventListener('resize', this.handleResize.bind(this), false);
-            this.handleResize(); // Initial setup
+            window.addEventListener('resize', this.handleResize.bind(this));
+            this.handleResize(); // Call once to set up
             this.animate();
         }
         handleResize() {
             this.canvas.width = window.innerWidth;
             this.canvas.height = window.innerHeight;
             this.columns = Math.floor(this.canvas.width / this.fontSize);
-            this.drops = Array(this.columns).fill(1).map(() => Math.floor(Math.random() * -100));
+            this.drops = [];
+            for(let i = 0; i < this.columns; i++) {
+                this.drops[i] = Math.floor(Math.random() * -100);
+            }
         }
         animate() {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
@@ -240,7 +365,8 @@
             requestAnimationFrame(this.animate);
         }
     }
-    // --- Object pooling ---
+
+    // --- Object pooling for performance optimization ---
     class ObjectPool {
         constructor(createFunc, initialCount = 10) {
             this.pool = [];
@@ -252,62 +378,31 @@
         get() {
             return this.pool.length > 0 ? this.pool.pop() : this.createFunc();
         }
-        release(object) { this.pool.push(object); }
+        release(object) {
+            this.pool.push(object);
+        }
     }
+
     // --- Main Game Class ---
     class SnakeGame {
         constructor() {
-            this.init();
-            new MatrixRain(); // Initialize matrix rain
-            this.setupEventListeners();
-            this.updateHighScoresTable();
-            GameState.changeState(GameState.MENU);
-        }
-
-        init() {
-            this.scene = new THREE.Scene();
-            this.scene.fog = new THREE.Fog(0x001100, CONFIG.GRID_SIZE * 0.8, CONFIG.GRID_SIZE * 2.5);
-
-            this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
-            this.camera.position.set(0, CONFIG.GRID_SIZE * 0.4, CONFIG.GRID_SIZE * 0.9);
-            this.camera.lookAt(0, -CONFIG.GRID_SIZE * 0.1, 0);
-
-            this.renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true, alpha: true });
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-            this.renderer.setPixelRatio(window.devicePixelRatio);
-
-            // Post-processing
-            const renderPass = new RenderPass(this.scene, this.camera);
-            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.75);
-            const chromaticAberrationPass = new ShaderPass(ChromaticAberrationShader);
-            this.composer = new EffectComposer(this.renderer);
-            this.composer.addPass(renderPass);
-            this.composer.addPass(bloomPass);
-            this.composer.addPass(chromaticAberrationPass);
-
-            // Lights, Grid, etc.
-            this.scene.add(new THREE.GridHelper(CONFIG.GRID_SIZE * CONFIG.CELL_SIZE, CONFIG.GRID_SIZE, 0x008800, 0x00FF00));
-            this.scene.add(new THREE.AmbientLight(0x404060, 0.1));
-            const dirLight = new THREE.DirectionalLight(0xffffee, 1.6);
-            dirLight.position.set(75, 13, 10);
-            this.scene.add(dirLight);
-            this.headLight = new THREE.PointLight(0x39FF14, 2, CONFIG.CELL_SIZE * 5);
-            this.scene.add(this.headLight);
-            
-            this.particleSystem = new ParticleSystem(this.scene);
-            
-            // Game State variables
+            this.scene = null; this.camera = null; this.renderer = null; this.composer = null;
             this.snake = []; this.food = null; this.obstacles = [];
             this.direction = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
             this.nextDirection = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
-            this.score = 0; this.gameLoopId = null;
+            this.score = 0;
             this.highScore = this.loadHighScores()[0]?.score || 0;
-            this.currentDifficulty = 'NORMAL';
-
+            this.gameSpeed = CONFIG.BASE_SPEED;
+            this.lastUpdateTime = 0;
+            this.isGameOver = false; this.isPaused = false; this.gameLoopId = null;
+            this.bounds = Math.floor(CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE;
+            this.obstacleCount = CONFIG.MAX_OBSTACLE_COUNT;
+            this.comboCount = 0; this.lastFoodTime = 0; this.currentDifficulty = 'NORMAL';
+            this.particleSystem = null; this.headLight = null;
             this.materials = {
                 snakeHead: new THREE.MeshStandardMaterial({ color: 0x39FF14, emissive: 0x39FF14, roughness: 0.1, metalness: 0.25 }),
                 snakeBody: new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x005500, roughness: 0.1, metalness: 1.5 }),
-                obstacle: new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x550000, roughness: 0.3, metalness: 1.0 }),
+                obstacle: new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x550000, roughness: 0.3, metalness: 1, wireframe: false }),
             };
             this.geometries = {
                 segment: new THREE.BoxGeometry(CONFIG.CELL_SIZE, CONFIG.CELL_SIZE, CONFIG.CELL_SIZE),
@@ -316,92 +411,114 @@
                 foodTetrahedron: new THREE.TetrahedronGeometry(CONFIG.CELL_SIZE * 0.6, 0),
                 obstacle: new THREE.BoxGeometry(CONFIG.CELL_SIZE * 0.9, CONFIG.CELL_SIZE * 1.5, CONFIG.CELL_SIZE * 0.9)
             };
-            this.segmentPool = new ObjectPool(() => new THREE.Mesh(this.geometries.segment, this.materials.snakeBody), 20);
-            this.obstaclePool = new ObjectPool(() => new THREE.Mesh(this.geometries.obstacle, this.materials.obstacle), CONFIG.MAX_OBSTACLE_COUNT * 1.5);
+            this.segmentPool = new ObjectPool(() => new THREE.Mesh(this.geometries.segment, this.materials.snakeBody.clone()), 20);
+            this.obstaclePool = new ObjectPool(() => new THREE.Mesh(this.geometries.obstacle, this.materials.obstacle.clone()), CONFIG.MAX_OBSTACLE_COUNT * 1.5);
+            
+            this.init();
+            new MatrixRain();
+            this.setupEventListeners();
+            this.updateHighScoresTable();
+            GameState.changeState(GameState.MENU);
+        }
+        init() {
+            this.scene = new THREE.Scene();
+            this.scene.fog = new THREE.Fog(0x001100, CONFIG.GRID_SIZE * 0.8, CONFIG.GRID_SIZE * 2.5);
+            this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+            this.camera.position.set(0, CONFIG.GRID_SIZE * 0.4, CONFIG.GRID_SIZE * 0.9);
+            this.camera.lookAt(0, -CONFIG.GRID_SIZE * 0.1, 0);
+            this.renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true, alpha: true });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(window.devicePixelRatio);
+            
+            const renderPass = new RenderPass(this.scene, this.camera);
+            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.75);
+            this.composer = new EffectComposer(this.renderer);
+            this.composer.addPass(renderPass);
+            this.composer.addPass(bloomPass);
+
+            const chromaticAberrationPass = new ShaderPass(ChromaticAberrationShader);
+            // FATAL ERROR REMOVED FROM THIS SECTION
+            chromaticAberrationPass.uniforms['aberrationAmount'].value = 0.0015;
+            this.composer.addPass(chromaticAberrationPass);
+
+            const gridHelper = new THREE.GridHelper(CONFIG.GRID_SIZE * CONFIG.CELL_SIZE, CONFIG.GRID_SIZE, 0x008800, 0x00FF00);
+            gridHelper.position.y = -CONFIG.CELL_SIZE / 2;
+            this.scene.add(gridHelper);
+            this.scene.add(new THREE.AmbientLight(0x404060, 0.1));
+            const directionalLight = new THREE.DirectionalLight(0xffffee, 1.6);
+            directionalLight.position.set(75, 13, 10);
+            this.scene.add(directionalLight);
+            this.headLight = new THREE.PointLight(0x39FF14, 2, CONFIG.CELL_SIZE * 5);
+            this.scene.add(this.headLight);
+            this.particleSystem = new ParticleSystem(this.scene);
             
             window.addEventListener('resize', () => {
                 this.camera.aspect = window.innerWidth / window.innerHeight;
                 this.camera.updateProjectionMatrix();
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.composer.setSize(window.innerWidth, window.innerHeight);
-                chromaticAberrationPass.uniforms['resolution'].value.set(window.innerWidth, window.innerHeight);
+                // FATAL ERROR REMOVED FROM THIS SECTION TOO
             }, false);
         }
-
-        placeObject(obj, isFood = false) {
-            let pos;
-            let validPosition = false;
-            const maxAttempts = isFood ? 100 : 50;
-            const numCells = CONFIG.GRID_SIZE;
-            for (let attempts = 0; !validPosition && attempts < maxAttempts; attempts++) {
-                const xIndex = Math.floor(Math.random() * numCells) - Math.floor((numCells - 1) / 2);
-                const zIndex = Math.floor(Math.random() * numCells) - Math.floor((numCells - 1) / 2);
-                pos = new THREE.Vector3(xIndex * CONFIG.CELL_SIZE, 0, zIndex * CONFIG.CELL_SIZE);
-                let collisionWithSnake = this.snake.some(s => s.position.distanceToSquared(pos) < (CONFIG.CELL_SIZE * 2) ** 2);
-                let collisionWithObstacle = this.obstacles.some(o => o.position.distanceToSquared(pos) < (CONFIG.CELL_SIZE * 1.5) ** 2);
-                let tooCloseToStart = !isFood && pos.lengthSq() < (CONFIG.CELL_SIZE * 4)**2;
-                validPosition = !collisionWithSnake && !collisionWithObstacle && !tooCloseToStart;
+        placeFood() {
+            let foodPos; let validPosition = false; let attempts = 0; const maxAttempts = 100;
+            while (!validPosition && attempts < maxAttempts) {
+                const x = (Math.floor(Math.random() * CONFIG.GRID_SIZE) - Math.floor(CONFIG.GRID_SIZE / 2)) * CONFIG.CELL_SIZE;
+                const z = (Math.floor(Math.random() * CONFIG.GRID_SIZE) - Math.floor(CONFIG.GRID_SIZE / 2)) * CONFIG.CELL_SIZE;
+                foodPos = new THREE.Vector3(x, 0, z);
+                let onSnake = this.snake.some(s => s.position.equals(foodPos));
+                let onObstacle = this.obstacles.some(o => o.position.equals(foodPos));
+                validPosition = !onSnake && !onObstacle;
+                attempts++;
             }
-            if (validPosition) {
-                obj.position.copy(pos);
-                if (!isFood) obj.position.y = (CONFIG.CELL_SIZE * 1.5 - CONFIG.CELL_SIZE) / 2 - CONFIG.CELL_SIZE / 2;
-                return true;
-            }
-            return false;
+            if (validPosition) this.food.position.copy(foodPos);
         }
-
         createObstacles() {
             this.obstacles.forEach(o => { this.scene.remove(o); this.obstaclePool.release(o); });
             this.obstacles = [];
             const obstacleCount = Math.floor(CONFIG.MAX_OBSTACLE_COUNT * CONFIG.DIFFICULTY_LEVELS[this.currentDifficulty].obstacleMultiplier);
             for (let i = 0; i < obstacleCount; i++) {
-                const obstacle = this.obstaclePool.get();
-                if (this.placeObject(obstacle, false)) {
+                let obstaclePos; let validPosition = false; let attempts = 0;
+                while (!validPosition && attempts < 50) {
+                    const x = (Math.floor(Math.random() * CONFIG.GRID_SIZE) - Math.floor(CONFIG.GRID_SIZE / 2)) * CONFIG.CELL_SIZE;
+                    const z = (Math.floor(Math.random() * CONFIG.GRID_SIZE) - Math.floor(CONFIG.GRID_SIZE / 2)) * CONFIG.CELL_SIZE;
+                    obstaclePos = new THREE.Vector3(x, 0, z);
+                    let tooCloseToStart = obstaclePos.length() < CONFIG.CELL_SIZE * 4;
+                    let onSnake = this.snake.some(s => s.position.distanceTo(obstaclePos) < CONFIG.CELL_SIZE * 2);
+                    let onOtherObstacle = this.obstacles.some(o => o.position.equals(obstaclePos));
+                    validPosition = !tooCloseToStart && !onSnake && !onOtherObstacle;
+                    attempts++;
+                }
+                if (validPosition) {
+                    const obstacle = this.obstaclePool.get();
+                    obstacle.position.copy(obstaclePos);
                     this.obstacles.push(obstacle);
                     this.scene.add(obstacle);
-                } else {
-                    this.obstaclePool.release(obstacle); // Didn't place, so release it
                 }
             }
         }
-        
         clearGameObjects() {
             this.snake.forEach(s => { this.scene.remove(s); this.segmentPool.release(s); });
-            this.obstacles.forEach(o => { this.scene.remove(o); this.obstaclePool.release(o); });
+            this.snake = [];
             if (this.food) this.scene.remove(this.food);
-            this.snake = []; this.obstacles = []; this.food = null;
+            this.food = null;
+            this.obstacles.forEach(o => { this.scene.remove(o); this.obstaclePool.release(o); });
+            this.obstacles = [];
             this.particleSystem.clear();
         }
-
         update(time) {
-            // REFINED: Simplified check. If not playing, we don't update.
-            if (GameState.currentState !== GameState.PLAYING) {
-                return;
-            }
-            if (time - this.lastUpdateTime < this.gameSpeed) {
-                return;
-            }
+            if (GameState.currentState !== GameState.PLAYING) return;
+            if (time - this.lastUpdateTime < this.gameSpeed) return;
             this.lastUpdateTime = time;
-            this.direction.copy(this.nextDirection);
 
+            this.direction.copy(this.nextDirection);
             const head = this.snake[0];
             const newHeadPos = head.position.clone().add(this.direction);
 
-            // Boundary checks
-            const halfGridWorld = (CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE;
-            if (Math.abs(newHeadPos.x) >= halfGridWorld || Math.abs(newHeadPos.z) >= halfGridWorld) {
-                this.triggerGameOver(); return;
-            }
+            if (Math.abs(newHeadPos.x) > this.bounds || Math.abs(newHeadPos.z) > this.bounds) { this.triggerGameOver(); return; }
+            for (let i = 1; i < this.snake.length; i++) { if (newHeadPos.equals(this.snake[i].position)) { this.triggerGameOver(); return; } }
+            for (const obstacle of this.obstacles) { if (newHeadPos.equals(obstacle.position)) { this.triggerGameOver(); return; } }
 
-            // Self-collision and obstacle collision checks
-            // REFINED: Using thresholds from CONFIG
-            const snakeCollision = this.snake.slice(1).some(s => newHeadPos.distanceToSquared(s.position) < (CONFIG.CELL_SIZE * CONFIG.COLLISION_THRESHOLD_SNAKE) ** 2);
-            const obstacleCollision = this.obstacles.some(o => newHeadPos.distanceToSquared(o.position) < (CONFIG.CELL_SIZE * CONFIG.COLLISION_THRESHOLD_OBJECT) ** 2);
-            if (snakeCollision || obstacleCollision) {
-                this.triggerGameOver(); return;
-            }
-
-            // Move snake
             const newHead = this.segmentPool.get();
             newHead.position.copy(newHeadPos);
             newHead.material = this.materials.snakeHead;
@@ -409,40 +526,32 @@
             this.snake.unshift(newHead);
             this.scene.add(newHead);
             this.headLight.position.copy(newHeadPos);
-            
-            // Food collision
-            // REFINED: Using threshold from CONFIG
-            if (this.food && newHeadPos.distanceToSquared(this.food.position) < (CONFIG.CELL_SIZE * CONFIG.COLLISION_THRESHOLD_OBJECT) ** 2) {
+
+            if (this.food && newHeadPos.equals(this.food.position)) {
                 const foodType = this.food.userData;
                 const currentTime = performance.now();
                 this.comboCount = (currentTime - this.lastFoodTime < CONFIG.COMBO_TIMEOUT) ? this.comboCount + 1 : 1;
                 this.lastFoodTime = currentTime;
-                
                 const points = foodType.points * this.comboCount;
                 this.score += points;
-
                 if (this.comboCount > 1) {
-                    const comboElement = document.getElementById('combo');
-                    comboElement.textContent = `Combo x${this.comboCount}! +${points}`;
-                    comboElement.style.opacity = 1;
-                    setTimeout(() => { comboElement.style.opacity = 0; }, 2000);
+                    const comboEl = document.getElementById('combo');
+                    comboEl.textContent = `Combo x${this.comboCount}! +${points}`;
+                    comboEl.style.opacity = 1;
+                    setTimeout(() => { comboEl.style.opacity = 0; }, 2000);
                 }
-
                 document.getElementById('info').textContent = `Score: ${this.score} | High: ${Math.max(this.score, this.highScore)}`;
-                this.gameSpeed = Math.max(50, this.gameSpeed + foodType.speedEffect);
-
+                if (foodType.speedEffect) this.gameSpeed = Math.max(50, this.gameSpeed + foodType.speedEffect);
                 document.getElementById('eatSound').currentTime = 0;
                 document.getElementById('eatSound').play();
                 this.particleSystem.createFoodEffect(this.food.position.clone(), new THREE.Color(foodType.color));
-                
                 this.chooseFoodType();
-                this.placeObject(this.food, true);
+                this.placeFood();
             } else {
                 const tail = this.snake.pop();
                 this.scene.remove(tail);
                 this.segmentPool.release(tail);
             }
-
             this.particleSystem.update();
             if (this.food) {
                 this.food.rotation.x += 0.01;
@@ -450,53 +559,40 @@
                 this.food.position.y = Math.sin(time * 0.0055) * 0.25 + 0.1;
             }
         }
-        
         chooseFoodType() {
-            const rand = Math.random();
-            let foodTypeData, geometry;
+            const rand = Math.random(); let foodTypeData, geometry;
             if (rand < 0.05) { [foodTypeData, geometry] = [CONFIG.FOOD_TYPES[2], this.geometries.foodTetrahedron]; }
             else if (rand < 0.25) { [foodTypeData, geometry] = [CONFIG.FOOD_TYPES[1], this.geometries.foodSphere]; }
             else { [foodTypeData, geometry] = [CONFIG.FOOD_TYPES[0], this.geometries.foodBox]; }
-            
             const material = new THREE.MeshStandardMaterial({ color: foodTypeData.color, emissive: foodTypeData.color, emissiveIntensity: 0.7, roughness: 0.1, metalness: 0.7, wireframe: true });
-            
-            if (!this.food) {
-                this.food = new THREE.Mesh(geometry, material);
-                this.scene.add(this.food);
-            } else {
-                this.food.geometry.dispose(); this.food.material.dispose();
-                this.food.geometry = geometry; this.food.material = material;
-            }
+            if (!this.food) { this.food = new THREE.Mesh(geometry, material); this.scene.add(this.food); }
+            else { this.food.geometry.dispose(); this.food.material.dispose(); this.food.geometry = geometry; this.food.material = material; }
             this.food.userData = foodTypeData;
         }
-
         resetGame() {
             this.clearGameObjects();
             ['eatSound', 'gameOverSound', 'bgMusic'].forEach(id => { const sound = document.getElementById(id); sound.pause(); sound.currentTime = 0; });
-            
             this.direction.set(CONFIG.CELL_SIZE, 0, 0);
             this.nextDirection.set(CONFIG.CELL_SIZE, 0, 0);
             this.score = 0;
-            this.comboCount = 0;
             this.gameSpeed = CONFIG.BASE_SPEED * CONFIG.DIFFICULTY_LEVELS[this.currentDifficulty].speedMultiplier;
-            
+            this.isGameOver = false; this.isPaused = false;
+            this.comboCount = 0;
+            this.lastFoodTime = 0;
             const startSegment = this.segmentPool.get();
             startSegment.position.set(0, 0, 0);
             startSegment.material = this.materials.snakeHead;
             this.snake.push(startSegment);
             this.scene.add(startSegment);
             this.headLight.position.copy(startSegment.position);
-
             this.chooseFoodType();
-            this.placeObject(this.food, true);
+            this.placeFood();
             this.createObstacles();
-            
             document.getElementById('info').textContent = `Score: ${this.score} | High: ${this.highScore}`;
             const music = document.getElementById('bgMusic');
             music.volume = 0.2;
             music.play().catch(e => console.warn("Music play failed:", e));
         }
-
         startGame() {
             if (this.gameLoopId) cancelAnimationFrame(this.gameLoopId);
             GameState.changeState(GameState.PLAYING);
@@ -504,11 +600,8 @@
             this.lastUpdateTime = performance.now();
             this.gameLoop();
         }
-
         triggerGameOver() {
             if (GameState.currentState === GameState.GAME_OVER) return;
-            
-            document.getElementById('bgMusic').pause();
             document.getElementById('finalScore').textContent = `Final Score: ${this.score}`;
             const highScores = this.loadHighScores();
             if (this.score > 0) {
@@ -518,109 +611,92 @@
                 this.highScore = Math.max(this.score, this.highScore);
             }
             this.updateHighScoresTable();
+            document.getElementById('bgMusic').pause();
             GameState.changeState(GameState.GAME_OVER);
         }
-
         gameLoop(time) {
             this.update(time || performance.now());
             this.render();
-            if (GameState.currentState === GameState.PLAYING || GameState.currentState === GameState.PAUSED) {
+            if (GameState.currentState !== GameState.GAME_OVER) {
                 this.gameLoopId = requestAnimationFrame(this.gameLoop.bind(this));
             } else {
                 cancelAnimationFrame(this.gameLoopId);
             }
         }
-        
         render() {
-            // REFINED: The composer will always exist, so no need for a fallback.
             this.composer.render();
         }
-
         setupEventListeners() {
             document.addEventListener('keydown', this.handleKeyDown.bind(this));
-
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            document.getElementById('touchControls').style.display = isMobile ? 'block' : 'none';
-
+            const touchControlsDiv = document.getElementById('touchControls');
+            if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                touchControlsDiv.style.display = 'block';
+            }
+            const preventDefault = (e) => e.preventDefault();
+            document.getElementById('upBtn').addEventListener('touchstart', (e) => { preventDefault(e); this.handleDirectionChange(0, 0, -CONFIG.CELL_SIZE); });
+            document.getElementById('downBtn').addEventListener('touchstart', (e) => { preventDefault(e); this.handleDirectionChange(0, 0, CONFIG.CELL_SIZE); });
+            document.getElementById('leftBtn').addEventListener('touchstart', (e) => { preventDefault(e); this.handleDirectionChange(-CONFIG.CELL_SIZE, 0, 0); });
+            document.getElementById('rightBtn').addEventListener('touchstart', (e) => { preventDefault(e); this.handleDirectionChange(CONFIG.CELL_SIZE, 0, 0); });
             document.getElementById('startBtn').addEventListener('click', () => this.startGame());
             document.getElementById('restartBtn').addEventListener('click', () => this.startGame());
             document.getElementById('menuBtn').addEventListener('click', () => GameState.changeState(GameState.MENU));
             document.getElementById('difficultyBtn').addEventListener('click', () => this.cycleDifficulty());
             document.getElementById('resumeBtn').addEventListener('click', () => this.togglePause());
             document.getElementById('quitBtn').addEventListener('click', () => {
-                this.togglePause(true); // Force quit
+                this.togglePause();
                 GameState.changeState(GameState.MENU);
             });
-            // Touch controls
-            document.getElementById('upBtn').addEventListener('touchstart', (e) => { e.preventDefault(); this.handleDirectionChange(0, 0, -CONFIG.CELL_SIZE); });
-            document.getElementById('downBtn').addEventListener('touchstart', (e) => { e.preventDefault(); this.handleDirectionChange(0, 0, CONFIG.CELL_SIZE); });
-            document.getElementById('leftBtn').addEventListener('touchstart', (e) => { e.preventDefault(); this.handleDirectionChange(-CONFIG.CELL_SIZE, 0, 0); });
-            document.getElementById('rightBtn').addEventListener('touchstart', (e) => { e.preventDefault(); this.handleDirectionChange(CONFIG.CELL_SIZE, 0, 0); });
         }
-
         cycleDifficulty() {
             const difficulties = Object.keys(CONFIG.DIFFICULTY_LEVELS);
             const nextIndex = (difficulties.indexOf(this.currentDifficulty) + 1) % difficulties.length;
             this.currentDifficulty = difficulties[nextIndex];
             document.getElementById('difficultyBtn').textContent = `DIFFICULTY: ${this.currentDifficulty.toUpperCase()}`;
         }
-
         handleKeyDown(event) {
-            const key = event.key.toLowerCase();
-            let directionHandled = true;
-
+            let handled = true;
             if (GameState.currentState === GameState.PLAYING) {
-                switch(key) {
+                switch(event.key.toLowerCase()) {
                     case 'arrowup': case 'w': this.handleDirectionChange(0, 0, -CONFIG.CELL_SIZE); break;
                     case 'arrowdown': case 's': this.handleDirectionChange(0, 0, CONFIG.CELL_SIZE); break;
                     case 'arrowleft': case 'a': this.handleDirectionChange(-CONFIG.CELL_SIZE, 0, 0); break;
                     case 'arrowright': case 'd': this.handleDirectionChange(CONFIG.CELL_SIZE, 0, 0); break;
                     case 'p': this.togglePause(); break;
-                    default: directionHandled = false; break;
+                    default: handled = false; break;
                 }
-            } else if (GameState.currentState === GameState.PAUSED && key === 'p') {
+            } else if (GameState.currentState === GameState.PAUSED && event.key.toLowerCase() === 'p') {
                 this.togglePause();
-            } else if ((GameState.currentState === GameState.GAME_OVER || GameState.currentState === GameState.MENU) && key === 'enter') {
+            } else if ((GameState.currentState === GameState.GAME_OVER || GameState.currentState === GameState.MENU) && event.key === 'Enter') {
                 this.startGame();
             } else {
-                directionHandled = false;
+                handled = false;
             }
-            // REFINED: Prevent default browser actions (like scrolling) for game keys.
-            if (directionHandled) event.preventDefault();
+            if (handled) event.preventDefault();
         }
-
         handleDirectionChange(dx, dy, dz) {
             const newDir = new THREE.Vector3(dx, dy, dz);
-            // Prevent 180-degree turns
-            if (this.direction.dot(newDir) < - (CONFIG.CELL_SIZE**2 * 0.5)) return;
+            if (this.direction.dot(newDir) < -0.1) return; // Prevent 180-degree turns
             this.nextDirection.copy(newDir);
         }
-
-        togglePause(forceQuit = false) {
-            if (!forceQuit && GameState.currentState !== GameState.PLAYING && GameState.currentState !== GameState.PAUSED) return;
+        togglePause() {
+            if (GameState.currentState !== GameState.PLAYING && GameState.currentState !== GameState.PAUSED) return;
             
-            const isPaused = GameState.currentState === GameState.PAUSED;
-            const music = document.getElementById('bgMusic');
-            
-            if (isPaused && !forceQuit) {
+            if (GameState.currentState === GameState.PAUSED) {
                 GameState.changeState(GameState.PLAYING);
-                music.play().catch(e => console.warn("Music play failed:", e));
-                this.lastUpdateTime = performance.now(); // Prevent jump
+                document.getElementById('bgMusic').play().catch(e => console.warn("Music play failed:", e));
+                this.lastUpdateTime = performance.now();
             } else {
                 GameState.changeState(GameState.PAUSED);
-                music.pause();
+                document.getElementById('bgMusic').pause();
             }
         }
-
         loadHighScores() {
-            try { return JSON.parse(localStorage.getItem('snakeHighScores')) || []; } 
-            catch { return []; }
+            try { return JSON.parse(localStorage.getItem('snakeHighScores')) || []; } catch { return []; }
         }
-
         updateHighScoresTable() {
             const highScores = this.loadHighScores();
             const table = document.getElementById('scoresTable');
-            table.innerHTML = '<tr><th>RANK</th><th>SCORE</th><th>DIFFICULTY</th></tr>'; // Clear and add header
+            table.innerHTML = '<tr><th>RANK</th><th>SCORE</th><th>DIFFICULTY</th></tr>';
             highScores.forEach((entry, index) => {
                 const row = table.insertRow(-1);
                 row.insertCell(0).textContent = index + 1;
@@ -629,7 +705,7 @@
             });
         }
     }
-    // Create and start the game
+
     const game = new SnakeGame();
 </script>
 </body>
