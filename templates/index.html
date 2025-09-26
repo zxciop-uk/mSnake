@@ -522,7 +522,7 @@
             this.renderer.setPixelRatio(window.devicePixelRatio);
             this.renderer.shadowMap.enabled = true; // If you add shadows
 
-             Post-processing for bloom
+            // Post-processing for bloom
             const renderPass = new RenderPass(this.scene, this.camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.75);
             bloomPass.threshold = 0.0;
