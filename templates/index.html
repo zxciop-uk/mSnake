@@ -216,8 +216,8 @@
     import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
     import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
     import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-    import { ChromaticAberrationShader } from 'three/addons/shaders/ChromaticAberrationShader.js';
-
+/*    import { ChromaticAberrationShader } from 'three/addons/shaders/ChromaticAberrationShader.js';
+*/
     // Game configuration
     const CONFIG = {
         GRID_SIZE: 25,
@@ -436,10 +436,12 @@
             this.composer.addPass(renderPass);
             this.composer.addPass(bloomPass);
 
+          /*
             const chromaticAberrationPass = new ShaderPass(ChromaticAberrationShader);
             // FATAL ERROR REMOVED FROM THIS SECTION
             chromaticAberrationPass.uniforms['aberrationAmount'].value = 0.0015;
             this.composer.addPass(chromaticAberrationPass);
+          */
 
             const gridHelper = new THREE.GridHelper(CONFIG.GRID_SIZE * CONFIG.CELL_SIZE, CONFIG.GRID_SIZE, 0x008800, 0x00FF00);
             gridHelper.position.y = -CONFIG.CELL_SIZE / 2;
