@@ -25,7 +25,7 @@
         .game-ui {
             position: absolute;
             padding: 10px;
-            background-color: rgba(0, 20, 0, 0.9);
+            background-color: rgba(0, 0, 20, 0.9);
             border: 1px solid #0f0;
             border-radius: 5px;
             font-size: 1.2em;
@@ -52,7 +52,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background-color: rgba(0, 10, 0, 0.0);
+            background-color: rgba(0, 10, 50, 0.2);
             z-index: 10;
         }
         #startScreen, #gameOverScreen {
@@ -91,9 +91,9 @@
             pointer-events: auto;
         }
         .button:hover {
-            background-color: rgba(0, 120, 0, 0.9);
+            background-color: rgba(0, 120, 0, 0.7);
             transform: translateY(-5px);
-            box-shadow: 0px 2px 10px #2eff00;
+            box-shadow: 0px 2px 10px #2eff00, 0 7px 14px rgba(0, 255, 0.1, 0.9), 3px 3px 6px rgba(0, 255, 0.1, 0.3);
         }
         .controls {
             margin-top: 20px;
@@ -121,12 +121,12 @@
             display: none; /* Hidden by default, shown on mobile */
         }
         .touchBtn {
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
             background-color: rgba(0, 120, 0, 0.7);
-            border: 1px solid #0f0;
+            border: 10px solid #0f0;
             border-radius: 50%;
-            margin: 5px;
+            margin: 15px;
             display: inline-flex;
             justify-content: center;
             align-items: center;
@@ -233,6 +233,7 @@
             'HARD': { speedMultiplier: 0.7, obstacleMultiplier: 1.5 }
         },
         MAX_OBSTACLE_COUNT: 10,  // Maximum number of obstacles
+        MAX_OBSTACLEB_COUNT: 3,  // Maximum number of obstacles
         FOOD_TYPES: [
             { type: 'regular', color: 0x00ff00, points: 1, speedEffect: 0 },
             { type: 'special', color: 0x00ffff, points: 5, speedEffect: -10 },
@@ -256,7 +257,7 @@
                 const material = new THREE.MeshBasicMaterial({
                     color: color || 0x00ff00,
                     transparent: true,
-                    opacity: 0.8
+                    opacity: 0.7
                 });
                 const particle = new THREE.Mesh(this.geometry, material);
                 particle.position.copy(position);
@@ -446,6 +447,7 @@
             this.snake = [];
             this.food = null;
             this.obstacles = [];
+            this.obstaclesB = [];
             this.direction = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
             this.nextDirection = new THREE.Vector3(CONFIG.CELL_SIZE, 0, 0);
             this.score = 0;
@@ -457,6 +459,7 @@
             this.gameLoopId = null;
             this.bounds = Math.floor(CONFIG.GRID_SIZE / 2) * CONFIG.CELL_SIZE;
             this.obstacleCount = CONFIG.MAX_OBSTACLE_COUNT;
+            this.obstacleBCount = CONFIG.MAX_OBSTACLEB_COUNT;
             this.comboCount = 0;
             this.lastFoodTime = 0;
             this.currentDifficulty = 'NORMAL';
@@ -473,14 +476,18 @@
                 obstacle: new THREE.MeshStandardMaterial({ // Changed to Standard for lighting
                     color: 0xff0000, emissive: 0x550000, roughness: 0.3, metalness: 1, wireframe: false
                 }),
+                obstacleB: new THREE.MeshStandardMaterial({ // Changed to Standard for lighting
+                    color: 0xff0069, emissive: 0x550000, roughness: 0.9, metalness: 0.1, wireframe: false
+                }),
                 // Food materials defined per type in chooseFoodType
             };
             this.geometries = {
                 segment: new THREE.BoxGeometry(CONFIG.CELL_SIZE, CONFIG.CELL_SIZE, CONFIG.CELL_SIZE),
                 foodBox: new THREE.BoxGeometry(CONFIG.CELL_SIZE * 0.8, CONFIG.CELL_SIZE * 0.8, CONFIG.CELL_SIZE * 0.8),
-                foodSphere: new THREE.SphereGeometry(CONFIG.CELL_SIZE * 0.5, 16, 12),
+                foodSphere: new THREE.SphereGeometry(CONFIG.CELL_SIZE * 0.5, 6, 12),
                 foodTetrahedron: new THREE.TetrahedronGeometry(CONFIG.CELL_SIZE * 0.6, 0),
-                obstacle: new THREE.BoxGeometry(CONFIG.CELL_SIZE * 0.9, CONFIG.CELL_SIZE * 1.5, CONFIG.CELL_SIZE * 0.9) // Taller obstacles
+                obstacle: new THREE.BoxGeometry(CONFIG.CELL_SIZE * 0.9, CONFIG.CELL_SIZE * 1.5, CONFIG.CELL_SIZE * 0.9), // Taller obstacles
+                obstacleB: new THREE.BoxGeometry(CONFIG.CELL_SIZE * 0.8, CONFIG.CELL_SIZE * 1.25, CONFIG.CELL_SIZE * 0.7) // Taller obstacles
             };
 
             this.segmentPool = new ObjectPool(() => {
@@ -494,6 +501,12 @@
                 obstacle.castShadow = true; // If using shadows
                 return obstacle;
             }, CONFIG.MAX_OBSTACLE_COUNT * 1.5);
+
+            this.obstacleBPool = new ObjectPool(() => {
+                const obstacleB = new THREE.Mesh(this.geometries.obstacleB, this.materials.obstacleB.clone());
+                obstacleB.castShadow = true; // If using shadows
+                return obstacleB;
+            }, CONFIG.MAX_OBSTACLEB_COUNT * 1.2);
 
             this.init(); // Call init before matrixRain if matrixRain depends on game elements
             this.matrixRain = new MatrixRain(); // Initialize after main game setup if it interacts
@@ -524,9 +537,9 @@
             // Post-processing for bloom
             const renderPass = new RenderPass(this.scene, this.camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.75);
-            bloomPass.threshold = 0.0;
-            bloomPass.strength = 1.3; // Play with these
-            bloomPass.radius = 0.3;
+            bloomPass.threshold = 0.2;
+            bloomPass.strength = 1.4; // Play with these
+            bloomPass.radius = 0.2;
 
             this.composer = new EffectComposer(this.renderer);
             this.composer.addPass(renderPass);
@@ -586,8 +599,12 @@
                 let collisionWithObstacle = this.obstacles.some(obstacle =>
                     obstacle.position.distanceToSquared(foodPos) < (CONFIG.CELL_SIZE * 0.9)**2
                 );
+              
+                let collisionWithObstacleB = this.obstacles.some(obstacle =>
+                    obstacleB.position.distanceToSquared(foodPos) < (CONFIG.CELL_SIZE * 0.9)**2
+                );
 
-                validPosition = !collisionWithSnake && !collisionWithObstacle;
+                validPosition = !collisionWithSnake && !collisionWithObstacle && !collisionWithObstacleB;
                 attempts++;
             }
 
@@ -652,6 +669,54 @@
             }
         }
 
+        createObstacleBs() {
+            this.obstacleBs.forEach(obstacleB => {
+                this.scene.remove(obstacleB);
+                this.obstacleBPool.release(obstacleB);
+            });
+            this.obstacleBs = [];
+
+            const numCells = CONFIG.GRID_SIZE;
+
+            for (let i = 0; i < this.obstacleBCount; i++) {
+                let obstaclePos;
+                let validPosition = false;
+                let attempts = 0;
+                const maxAttempts = 50;
+
+                while (!validPosition && attempts < maxAttempts) {
+                    const xIndex = Math.floor(Math.random() * numCells) - Math.floor((numCells - 1) / 2);
+                    const zIndex = Math.floor(Math.random() * numCells) - Math.floor((numCells - 1) / 2);
+                    obstacleBPos = new THREE.Vector3(
+                        xIndex * CONFIG.CELL_SIZE,
+                        0, // Obstacles on the grid plane, but mesh is taller
+                        zIndex * CONFIG.CELL_SIZE
+                    );
+
+                    let tooCloseToStart = obstacleBPos.lengthSq() < (CONFIG.CELL_SIZE * 4)**2; // Check squared length
+
+                    let collisionWithSnake = this.snake.some(segment =>
+                        segment.position.distanceToSquared(obstacleBPos) < (CONFIG.CELL_SIZE * 2)**2
+                    );
+
+                    let collisionWithOtherObstacleB = this.obstacleBs.some(existingObstacleB =>
+                        existingObstacleB.position.distanceToSquared(obstacleBPos) < (CONFIG.CELL_SIZE * 1.5)**2 // Ensure spacing
+                    );
+
+                    validPosition = !tooCloseToStart && !collisionWithSnake && !collisionWithOtherObstacle;
+                    attempts++;
+                }
+
+                if (validPosition) {
+                    const obstacleB = this.obstacleBPool.get();
+                    obstacleB.position.copy(obstacleBPos);
+                    obstacle.position.y = (CONFIG.CELL_SIZE * 1.5 - CONFIG.CELL_SIZE) / 2 - CONFIG.CELL_SIZE / 2; // Adjust Y to sit on grid
+                    this.obstacleBs.push(obstacleB);
+                    this.scene.add(obstacleB);
+                }
+            }
+        }
+
         clearGameObjects() {
             this.snake.forEach(segment => {
                 this.scene.remove(segment);
@@ -670,6 +735,12 @@
                 this.obstaclePool.release(obstacle);
             });
             this.obstacles = [];
+
+            this.obstacleBs.forEach(obstacleB => {
+                this.scene.remove(obstacleB);
+                this.obstacleBPool.release(obstacleB);
+            });
+            this.obstacleBs = [];
 
             this.particleSystem.clear();
         }
@@ -707,6 +778,13 @@
 
             for (const obstacle of this.obstacles) {
                 if (newHeadPos.distanceToSquared(obstacle.position) < (CONFIG.CELL_SIZE * 0.75)**2) { // Check collision with obstacle
+                    this.triggerGameOver();
+                    return;
+                }
+            }
+
+            for (const obstacleB of this.obstacleBs) {
+                if (newHeadPos.distanceToSquared(obstacleB.position) < (CONFIG.CELL_SIZE * 0.75)**2) { // Check collision with obstacle
                     this.triggerGameOver();
                     return;
                 }
@@ -778,6 +856,7 @@
             }
         }
 
+      
         chooseFoodType() {
             const rand = Math.random();
             let foodTypeData;
