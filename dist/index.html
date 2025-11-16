@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- For loading alternate resource paths
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+</script>
+      <script type="module" src="{{ url_for('static', filename='game.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    -->
+
+    <title>Matrix Snake 3D - Enhanced</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: #0f0;
+            text-shadow: 1px 1px 3px #0f0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        canvas {
+            display: block;
+        }
+        .game-ui {
+            position: absolute;
+            padding: 10px;
+            background-color: rgba(0, 20, 0, 0.9);
+            border: 1px solid #0f0;
+            border-radius: 5px;
+            font-size: 1.2em;
+            pointer-events: none;
+        }
+        #info {
+            top: 10px;
+            left: 10px;
+        }
+        #combo {
+            top: 10px;
+            right: 10px;
+            color: #0ff;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #gameScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 10, 0, 0.0);
+            z-index: 10;
+        }
+        #startScreen, #gameOverScreen {
+            padding: 30px;
+            background-color: rgba(0, 30, 0, 0.7);
+            border: 2px solid #00ff00;
+            color: #2eff00;
+            text-shadow: lime 3px 3px 3px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+            text-emphasis-color: #91ff83;
+        }
+        #gameOverScreen {
+            border-color: #f00;
+        }
+        .title {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 5px #11ff00, 1px 1px 3px #eeff00, -3px -3px 3px #11ff00, 0px 2px 5px #2eff00;
+        }
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: rgba(0, 40, 0, 0.5);
+            border: 1px solid #aaff00;
+            border-radius: 5px;
+            color: #0f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        .button:hover {
+            background-color: rgba(0, 120, 0, 0.9);
+            transform: translateY(-5px);
+            box-shadow: 0px 2px 10px #2eff00;
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        #highScores {
+            margin-top: 20px;
+            text-align: left;
+            width: 100%;
+        }
+        #highScores table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #highScores th, #highScores td {
+            padding: 5px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.5);
+        }
+        #touchControls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none; /* Hidden by default, shown on mobile */
+        }
+        .touchBtn {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(0, 120, 0, 0.7);
+            border: 1px solid #0f0;
+            border-radius: 50%;
+            margin: 5px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        /* Matrix animation background */
+        #matrixCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+    </style>
+  <script type="module" crossorigin src="/assets/index-DFcc9AiK.js"></script>
+</head>
+<body>
+<!-- Matrix background -->
+<canvas id="matrixCanvas"></canvas>
+
+<!-- Game canvas -->
+<canvas id="gameCanvas"></canvas>
+
+<!-- Game UI -->
+<div id="info" class="game-ui">Score: 0 | High: 0</div>
+<div id="combo" class="game-ui">Combo x1!</div>
+
+<!-- Touch controls for mobile -->
+<div id="touchControls">
+    <div class="touchBtn" id="upBtn">↑</div>
+    <div style="display: flex;">
+        <div class="touchBtn" id="leftBtn">←</div>
+        <div class="touchBtn" id="downBtn">↓</div>
+        <div class="touchBtn" id="rightBtn">→</div>
+    </div>
+</div>
+
+<!-- Game screens -->
+<div id="gameScreen">
+    <div id="startScreen">
+        <div class="title">MATRIX SNAKE 3D</div>
+        <div class="subtitle">Navigate the digital realm. Collect data packets. Avoid system firewalls.</div>
+        <div class="button" id="startBtn">START GAME</div>
+        <div class="button" id="difficultyBtn">DIFFICULTY: NORMAL</div>
+        <div class="controls">
+            Use Arrow Keys to change direction<br>
+            Press P to pause the game
+        </div>
+        <div id="highScores">
+            <h3>HIGH SCORES</h3>
+            <table id="scoresTable">
+                <tr><th>RANK</th><th>SCORE</th><th>DIFFICULTY</th></tr>
+            </table>
+        </div>
+    </div>
+    <div id="gameOverScreen" style="display: none;">
+        <div class="title" style="color: #f00;">SYSTEM FAILURE</div>
+        <div id="finalScore" class="subtitle">Final Score: 0</div>
+        <div class="button" id="restartBtn">RESTART</div>
+        <div class="button" id="menuBtn">MAIN MENU</div>
+    </div>
+    <div id="pauseScreen" style="display: none;">
+        <div class="title">PAUSED</div>
+        <div class="subtitle">Press P to resume</div>
+        <div class="button" id="resumeBtn">RESUME</div>
+        <div class="button" id="quitBtn">QUIT</div>
+    </div>
+</div>
+
+<!-- Audio elements -->
+<audio id="eatSound" preload="auto">
+    <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAFgAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAWMBaq2QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAANIAqJWUEQAFO+gRc5TRJIkiRJEiL///////////8RERERERERVVVVVVVVVVVVVVJEREREREVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/jGMQJA/Aa1flBABBTpGX9hDGMYxw7/+MMYxd/4wxIiI9////jDEQ7/jdEiJERERBaIiIzMzMzIiIiP//MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM/+MYxB4AAANIAAAAADMzMzMzMzMzMzMzMzMzMzMzM" type="audio/mpeg">
+</audio>
+<audio id="gameOverSound" preload="auto">
+    <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAFgAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAWMBaq2QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAAKMFqZVQEwAhGKzc+FSIiIiIiIiIj4+Pj4+Pj4+Pj4+JIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIv/jIMQNAAAP8AEAAAI+IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIv/jEMQQAAAP8AAAAAI+IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIg==" type="audio/mpeg">
+</audio>
+<audio id="bgMusic" loop preload="auto">
+    <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAFgAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAWMBaq2QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAAJcAKRWQEQAFNfQRc5znOc5znP/////////uc5znOc5znOc5znEREREREREREREMYxjGMY/+MYxBEJkFahX4wwAjGMYxjGMYxjGMYxERERERERESIiIiL//////////////+MYxBQG4AqlX8MQAu/////////////////////jIMQVBVwCqVfwBAC/////////////////" type="audio/mpeg">
+</audio>
+
+
+
+</body>
+</html>
